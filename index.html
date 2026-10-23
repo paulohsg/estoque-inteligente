@@ -1,0 +1,765 @@
+<title>Estoque Industrial SENAI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<style>
+/* Layout: barra lateral preta fixa + área principal clara com cartões de indicadores e listas */
+:root {
+  --bg: #f1f4f5; --surface: #ffffff; --line: #e1e6ea; --line-soft: #edf0f2;
+  --fg: #1f2d3d; --muted: #5d6b7a; --side: #000000; --side-fg: #ffffff; --side-muted: #c9d1d9; --side-active: #34495e;
+  --blue: #2c5578; --amber: #d49b1f; --amber-bg: #fdf0c7; --amber-fg: #6e4d00;
+  --red: #c0393b; --red-bg: #fbe1df; --red-fg: #9c2427; --green-bg: #e2f2e7; --green-fg: #22663e;
+  --f-body: "DM Sans", "Segoe UI", system-ui, sans-serif;
+  --f-serif: "Source Serif 4", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11171c; --surface: #1a2229; --line: #2c3740; --line-soft: #242e36;
+  --fg: #e5ebf0; --muted: #98a6b3; --side: #000000; --side-fg: #ffffff; --side-muted: #b3bdc7; --side-active: #34495e;
+  --blue: #6c9cc4; --amber: #e0ad3a; --amber-bg: #3b2f12; --amber-fg: #f3cf7a;
+  --red: #e2605f; --red-bg: #3d1d1e; --red-fg: #ff9c98; --green-bg: #173123; --green-fg: #7fd6a1; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11171c; --surface: #1a2229; --line: #2c3740; --line-soft: #242e36;
+  --fg: #e5ebf0; --muted: #98a6b3; --side: #000000; --side-fg: #ffffff; --side-muted: #b3bdc7; --side-active: #34495e;
+  --blue: #6c9cc4; --amber: #e0ad3a; --amber-bg: #3b2f12; --amber-fg: #f3cf7a;
+  --red: #e2605f; --red-bg: #3d1d1e; --red-fg: #ff9c98; --green-bg: #173123; --green-fg: #7fd6a1; color-scheme: dark }
+
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+html, body { height: 100% }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.45 }
+
+.app { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100% }
+
+/* Barra lateral */
+.side { background: var(--side); color: var(--side-fg); padding: 20px; padding-left: max(20px, env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; gap: 30px; position: sticky; top: 0; height: 100vh; overflow-y: auto }
+.eyebrow-side { font-size: .72rem; letter-spacing: .22em; text-transform: uppercase; color: var(--side-muted); margin: 0 0 12px }
+.brand { font-size: 1.32rem; font-weight: 700; line-height: 1.22; text-transform: uppercase; margin: 0 }
+.nav { display: grid; gap: 4px }
+.nav button { all: unset; cursor: pointer; padding: 11px 14px; border-radius: 8px; color: var(--side-fg); font-size: .98rem }
+.nav button:hover { background: #1a1f25 }
+.nav button[aria-current="page"] { background: var(--side-active) }
+.nav button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px }
+.nav .badge { display: inline-block; margin-left: 6px; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--red); color: #fff; font-size: .74rem; font-weight: 700; text-align: center; line-height: 20px }
+.side-note { color: var(--side-muted); font-size: .92rem; margin: 0; color: #e3e8ed }
+
+/* Área principal */
+.main { padding-block: 40px 48px; padding-left: max(40px, env(safe-area-inset-left, 0px)); padding-right: max(40px, env(safe-area-inset-right, 0px)); min-width: 0 }
+.eyebrow { font-size: .9rem; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px }
+.page-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 16px; flex-wrap: wrap; margin-bottom: 28px }
+.page-title { font-family: var(--f-serif); font-weight: 600; font-size: 1.08rem; margin: 0 }
+.date { color: var(--muted); font-size: .92rem }
+.head-actions { display: flex; gap: 10px; flex-wrap: wrap }
+
+/* Cartões de indicadores */
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--blue); border-radius: 14px; padding: 18px 16px 20px; min-height: 120px }
+.kpi.amber { border-color: var(--amber) } .kpi.red { border-color: var(--red) }
+.kpi.amber, .kpi.red { border-top-width: 4px }
+.kpi span { display: block; color: var(--muted); font-size: .95rem; line-height: 1.35 }
+.kpi strong { display: block; font-size: 1.95rem; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums }
+
+/* Cartão de conteúdo */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 20px; margin-top: 24px }
+.card h2 { font-size: 1.45rem; font-weight: 700; margin: 0 }
+.card .sub { color: var(--muted); margin: 4px 0 0 }
+.card-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px }
+.list { list-style: none; margin: 16px 0 0; padding: 0 }
+.list li { display: flex; justify-content: space-between; align-items: center; gap: 8px 16px; padding: 20px 0; border-top: 1px solid var(--line-soft); flex-wrap: wrap }
+.list li:last-child { padding-bottom: 4px }
+.item-name { font-weight: 600; font-size: .95rem }
+.item-detail { color: var(--muted); font-size: .86rem; font-weight: 400; display: block; margin-top: 2px }
+.pills { display: flex; gap: 4px; flex-wrap: wrap }
+.pill { display: inline-block; font-size: .74rem; font-weight: 700; padding: 4px 9px; border-radius: 999px; white-space: nowrap }
+.pill.amber { background: var(--amber-bg); color: var(--amber-fg) }
+.pill.red { background: var(--red-bg); color: var(--red-fg) }
+.pill.green { background: var(--green-bg); color: var(--green-fg) }
+.pill.blue { background: color-mix(in srgb, var(--blue) 16%, transparent); color: var(--blue) }
+.ok-line { color: var(--muted); padding: 20px 0 4px; border-top: 1px solid var(--line-soft); margin: 16px 0 0 }
+
+/* Tabelas */
+.table-box { overflow-x: auto; margin: 0 -20px; padding: 0 20px }
+table { width: 100%; border-collapse: collapse; min-width: 720px }
+th, td { text-align: left; padding: 13px 10px; border-top: 1px solid var(--line-soft); vertical-align: middle }
+th { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); border-top: 0 }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums }
+.code { font-weight: 700; white-space: nowrap }
+.tag-ex { font-weight: 600; color: var(--muted) }
+.row-actions { display: flex; gap: 6px; justify-content: flex-end }
+.empty { color: var(--muted); text-align: center; padding: 28px }
+
+/* Controles */
+input, select { font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100% }
+input:focus-visible, select:focus-visible, .btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px }
+label { display: grid; gap: 5px; font-weight: 500; font-size: .9rem }
+.hint { font-weight: 400; color: var(--muted); font-size: .8rem }
+.btn { font: 600 .9rem var(--f-body); border-radius: 8px; padding: 9px 15px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--fg); white-space: nowrap }
+.btn:hover { border-color: var(--blue) }
+.btn.primary { background: var(--side-active); color: #fff; border-color: var(--side-active) }
+.btn.primary:hover { filter: brightness(1.12) }
+.btn.danger { color: var(--red-fg); border-color: var(--red) }
+.btn.sm { padding: 5px 10px; font-size: .82rem }
+.btn:disabled { opacity: .4; cursor: not-allowed }
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap }
+.toolbar input { flex: 1 1 240px; width: auto }
+.toolbar select { flex: 0 1 200px; width: auto }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
+.grid.three { grid-template-columns: 2fr 1fr 1fr }
+.grid .full { grid-column: 1 / -1 }
+.form-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; align-items: center }
+.modo { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 14px; margin: 0; min-width: 0; display: grid; gap: 12px }
+.modo legend { font-weight: 500; font-size: .9rem; padding: 0 6px }
+.radios { display: flex; gap: 8px; flex-wrap: wrap }
+.radio { display: flex; align-items: center; gap: 8px; font-weight: 500; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer }
+.radio input { width: auto; margin: 0; accent-color: var(--side-active) }
+.radio:has(input:checked) { border-color: var(--side-active); background: color-mix(in srgb, var(--side-active) 10%, transparent) }
+.radio:has(input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 1px }
+.caixas-campos label:has(input:disabled) { color: var(--muted) }
+input:disabled { background: var(--line-soft); color: var(--muted); cursor: not-allowed }
+.calc { margin: 0; font-size: .9rem; color: var(--fg); font-variant-numeric: tabular-nums }
+.scan-area { display: grid; gap: 12px }
+.leitor { width: 100%; max-width: 440px; border-radius: 10px; overflow: hidden; background: #000 }
+.leitor video { display: block; width: 100% !important }
+.scan-actions { display: flex; gap: 8px; flex-wrap: wrap }
+.scan-actions label.btn { display: inline-block }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap }
+.scan-status { border-radius: 8px; padding: 10px 12px; font-size: .92rem; display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; justify-content: space-between }
+.scan-status.ok { background: var(--green-bg); color: var(--green-fg) }
+.scan-status.bad { background: var(--red-bg); color: var(--red-fg) }
+.scan-status.info { background: var(--line-soft); color: var(--muted) }
+.err { color: var(--red-fg); background: var(--red-bg); border-radius: 8px; padding: 8px 12px; font-size: .9rem; margin: 14px 0 0; font-weight: 500 }
+.info { color: var(--muted); font-size: .9rem; margin: 14px 0 0 }
+
+/* Relatórios */
+.bars { display: grid; gap: 14px; margin-top: 16px }
+.bar-row { display: grid; grid-template-columns: 170px minmax(0, 1fr) 60px; gap: 12px; align-items: center }
+.bar-track { height: 12px; background: var(--line-soft); border-radius: 999px; overflow: hidden }
+.bar-fill { height: 100%; border-radius: 999px }
+.bar-row b { text-align: right; font-variant-numeric: tabular-nums }
+
+/* Diálogos */
+dialog { border: 1px solid var(--line); border-radius: 14px; padding: 0; background: var(--surface); color: var(--fg); width: min(540px, calc(100vw - 32px)) }
+dialog::backdrop { background: rgb(5 8 12 / .55) }
+.dlg-head { padding: 16px 20px; border-bottom: 1px solid var(--line-soft); display: flex; justify-content: space-between; align-items: center; gap: 8px }
+.dlg-head h2 { font-size: 1.15rem; margin: 0 }
+.dlg-body { padding: 18px 20px 20px }
+.x { background: none; border: 0; font-size: 1.5rem; color: var(--muted); cursor: pointer; line-height: 1 }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  background: var(--side-active); color: #fff; padding: 11px 18px; border-radius: 10px; font-weight: 500; max-width: calc(100vw - 32px); z-index: 20; box-shadow: 0 8px 24px rgb(0 0 0 / .25) }
+
+@media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) } }
+@media (max-width: 820px) {
+  .app { grid-template-columns: 1fr }
+  .side { position: static; height: auto; gap: 14px; padding: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+  .brand br { display: none }
+  .nav { display: flex; overflow-x: auto; gap: 4px; margin: 0 -4px }
+  .nav button { white-space: nowrap; padding: 9px 12px }
+  .side-note { display: none }
+  .main { padding-block: 24px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .grid, .grid.three { grid-template-columns: 1fr }
+  .bar-row { grid-template-columns: 110px minmax(0, 1fr) 44px }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+</style>
+
+<div class="app">
+  <aside class="side">
+    <div>
+      <p class="eyebrow-side">Operações / 01</p>
+      <p class="brand">Estoque<br> Industrial</p>
+    </div>
+    <nav class="nav" aria-label="Seções">
+      <button data-view="dashboard" aria-current="page">Dashboard</button>
+      <button data-view="produtos">Produtos</button>
+      <button data-view="movimentacoes">Movimentações</button>
+      <button data-view="alertas">Alertas<span class="badge" id="nav-badge" hidden></span></button>
+      <button data-view="relatorios">Relatórios</button>
+      <button data-view="configuracoes">Configurações</button>
+    </nav>
+    <p class="side-note">Controle operacional de materiais e rastreabilidade de movimentações.</p>
+  </aside>
+
+  <main class="main">
+    <p class="eyebrow">Central de operações</p>
+    <div class="page-head">
+      <h1 class="page-title" id="page-title">Visão geral do estoque</h1>
+      <span class="date" id="date"></span>
+    </div>
+
+    <!-- DASHBOARD -->
+    <section id="view-dashboard">
+      <div class="kpis" id="kpis"></div>
+      <div class="card">
+        <h2>Atenção necessária</h2>
+        <p class="sub">Itens com estoque baixo ou alertas de validade.</p>
+        <div id="attention"></div>
+      </div>
+    </section>
+
+    <!-- PRODUTOS -->
+    <section id="view-produtos" hidden>
+      <div class="card" style="margin-top:0">
+        <div class="card-head">
+          <div><h2>Produtos cadastrados</h2><p class="sub">Pesquise, movimente ou edite os materiais.</p></div>
+          <div class="head-actions">
+            <button class="btn" id="btn-novo-scan">Cadastrar lendo código</button>
+            <button class="btn primary" id="btn-novo">+ Novo produto</button>
+          </div>
+        </div>
+        <div class="toolbar">
+          <input id="busca" type="search" placeholder="Pesquisar por código ou descrição" aria-label="Pesquisar">
+          <select id="filtro" aria-label="Filtrar por situação">
+            <option value="">Todas as situações</option>
+            <option value="regular">Regular</option>
+            <option value="baixo">Estoque baixo</option>
+            <option value="proximo">Próximo do vencimento</option>
+            <option value="vencido">Vencido</option>
+          </select>
+        </div>
+        <div class="table-box" style="margin-top:12px">
+          <table>
+            <thead><tr><th>Código</th><th>Descrição</th><th class="num">Qtd</th><th class="num">Mín.</th><th>Lote</th><th>Validade</th><th>Situação</th><th class="num">Ações</th></tr></thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- MOVIMENTAÇÕES -->
+    <section id="view-movimentacoes" hidden>
+      <div class="card" style="margin-top:0">
+        <h2>Registrar movimentação</h2>
+        <p class="sub">Entradas somam ao saldo; saídas são bloqueadas para produtos vencidos ou sem saldo.</p>
+        <form id="form-mov-page" novalidate style="margin-top:16px">
+          <fieldset class="modo" style="margin-bottom:16px">
+            <legend>Como identificar o produto</legend>
+            <div class="radios">
+              <label class="radio"><input type="radio" name="m-modo" id="m-modo-manual" value="manual" checked> Manual</label>
+              <label class="radio"><input type="radio" name="m-modo" id="m-modo-camera" value="camera"> Câmera (código de barras ou QR code)</label>
+            </div>
+            <div id="scan-area" class="scan-area" hidden>
+              <div id="leitor" class="leitor" hidden></div>
+              <div class="scan-actions">
+                <button type="button" class="btn primary" id="btn-cam">Abrir câmera</button>
+                <label class="btn" for="scan-foto">Tirar foto do código</label>
+                <input type="file" id="scan-foto" accept="image/*" capture="environment" class="visually-hidden">
+              </div>
+              <label>Ou digite o código (também funciona com leitor USB)
+                <input id="scan-codigo" autocomplete="off" placeholder="Ex.: EX-LUB-02 e tecle Enter"></label>
+              <div id="scan-status" class="scan-status" hidden></div>
+            </div>
+          </fieldset>
+          <div class="grid three">
+            <label id="lbl-m-produto">Produto<select id="m-produto"></select></label>
+            <label>Tipo<select id="m-tipo"><option value="entrada">Entrada</option><option value="saida">Saída</option></select></label>
+            <label>Quantidade<input id="m-qtd" type="number" min="0" step="any" inputmode="decimal"></label>
+          </div>
+          <p class="err" id="m-erro" hidden></p>
+          <div class="form-actions"><button class="btn primary" type="submit">Registrar</button><span class="hint" id="m-saldo"></span></div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Histórico de movimentações</h2>
+        <p class="sub">Rastreabilidade de todas as entradas e saídas (RF11 / RN-10).</p>
+        <div class="table-box" style="margin-top:12px">
+          <table>
+            <thead><tr><th>Data / hora</th><th>Tipo</th><th class="num">Qtd</th><th>Código</th><th>Descrição</th></tr></thead>
+            <tbody id="hbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ALERTAS -->
+    <section id="view-alertas" hidden>
+      <div class="card" style="margin-top:0">
+        <h2>Painel de alertas automáticos</h2>
+        <p class="sub">Verificação de validade e estoque mínimo (GRO / NR-01).</p>
+        <div id="alert-full"></div>
+      </div>
+    </section>
+
+    <!-- RELATÓRIOS -->
+    <section id="view-relatorios" hidden>
+      <div class="kpis" id="rep-kpis"></div>
+      <div class="card">
+        <h2>Produtos por situação</h2>
+        <p class="sub">Distribuição dos itens cadastrados.</p>
+        <div class="bars" id="rep-bars"></div>
+      </div>
+      <div class="card">
+        <h2>Necessidade de reposição</h2>
+        <p class="sub">Quanto falta para cada item voltar acima do estoque mínimo.</p>
+        <div id="rep-repor"></div>
+      </div>
+    </section>
+
+    <!-- CONFIGURAÇÕES -->
+    <section id="view-configuracoes" hidden>
+      <div class="card" style="margin-top:0">
+        <h2>Alertas de validade</h2>
+        <p class="sub">Defina com quantos dias de antecedência um produto aparece como “Próximo do vencimento”.</p>
+        <form id="form-cfg" novalidate style="margin-top:16px; max-width:320px">
+          <label>Dias de antecedência<input id="cfg-dias" type="number" min="1" step="1"></label>
+          <div class="form-actions"><button class="btn primary" type="submit">Salvar</button></div>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Dados</h2>
+        <p class="sub">Os dados ficam salvos apenas neste navegador.</p>
+        <div class="form-actions" id="reset-area"><button class="btn danger" type="button" id="btn-reset">Restaurar dados de exemplo</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Diálogo: novo / editar produto -->
+<dialog id="dlg-prod">
+  <form id="form-prod" novalidate>
+    <div class="dlg-head"><h2 id="p-titulo">Novo produto</h2><button class="x" type="button" data-close aria-label="Fechar">×</button></div>
+    <div class="dlg-body">
+      <div class="grid">
+        <div class="full scan-area">
+          <label>Código único <span class="hint">Obrigatório (RN-07). Digite ou leia o código de barras / QR code da embalagem.</span><input id="p-codigo" autocomplete="off"></label>
+          <div class="scan-actions" id="p-scan-btns">
+            <button type="button" class="btn sm" id="p-btn-cam">Ler com a câmera</button>
+            <label class="btn sm" for="p-foto">Ler de uma foto</label>
+            <input type="file" id="p-foto" accept="image/*" capture="environment" class="visually-hidden">
+          </div>
+          <div id="leitor-prod" class="leitor" hidden></div>
+          <div id="p-scan-status" class="scan-status" hidden></div>
+        </div>
+        <label class="full">Descrição / nome do material<input id="p-descricao" autocomplete="off"></label>
+        <label>Lote do fabricante <span class="hint">RN-05</span><input id="p-lote" autocomplete="off"></label>
+        <label>Data de validade<input id="p-validade" type="date"></label>
+        <fieldset class="full modo">
+          <legend>Forma de entrada da quantidade</legend>
+          <div class="radios">
+            <label class="radio"><input type="radio" name="p-modo" id="p-modo-avulso" value="avulso" checked> Pequenas quantidades</label>
+            <label class="radio"><input type="radio" name="p-modo" id="p-modo-caixas" value="caixas"> Caixas</label>
+          </div>
+          <div class="grid caixas-campos">
+            <label id="lbl-caixas">Número de caixas<input id="p-caixas" type="number" min="1" step="1" inputmode="numeric" disabled></label>
+            <label id="lbl-por-caixa">Unidades por caixa<input id="p-por-caixa" type="number" min="0" step="any" inputmode="decimal" disabled></label>
+          </div>
+          <p class="calc" id="p-calc" hidden></p>
+        </fieldset>
+        <label>Quantidade total<input id="p-quantidade" type="number" min="0" step="any" inputmode="decimal"></label>
+        <label>Estoque mínimo<input id="p-minimo" type="number" min="0" step="any" inputmode="decimal"></label>
+      </div>
+      <p class="err" id="p-erro" hidden></p>
+      <div class="form-actions"><button class="btn primary" type="submit" id="p-ok">Cadastrar</button><button class="btn" type="button" data-close>Cancelar</button></div>
+    </div>
+  </form>
+</dialog>
+
+<!-- Diálogo: movimentação rápida -->
+<dialog id="dlg-mov">
+  <form id="form-mov" novalidate>
+    <div class="dlg-head"><h2 id="mv-titulo">Registrar entrada</h2><button class="x" type="button" data-close aria-label="Fechar">×</button></div>
+    <div class="dlg-body">
+      <p class="sub" id="mv-sub" style="margin:0 0 14px"></p>
+      <label>Quantidade<input id="mv-qtd" type="number" min="0" step="any" inputmode="decimal"></label>
+      <p class="err" id="mv-erro" hidden></p>
+      <div class="form-actions"><button class="btn primary" type="submit">Confirmar</button><button class="btn" type="button" data-close>Cancelar</button></div>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+// ---------- Dados ----------
+const EXEMPLO = {
+  "EX-CHA-01": { descricao: "Chapa de aço inox", quantidade: 40, lote: "L-2026A", validade: "2027-12-30", estoque_minimo: 10, exemplo: true },
+  "EX-LUB-02": { descricao: "Lubrificante industrial", quantidade: 8.5, lote: "L-LB77", validade: "2026-11-10", estoque_minimo: 10, exemplo: true },
+  "EX-RES-03": { descricao: "Resina industrial", quantidade: 12, lote: "L-99B", validade: "2026-10-15", estoque_minimo: 5, exemplo: true }
+};
+const KEY = "estoque-senai-v2";
+let estoque, historico, diasAviso;
+
+function carregar() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && s.estoque) { estoque = s.estoque; historico = s.historico || []; diasAviso = s.diasAviso || 30; return; }
+  } catch (e) {}
+  estoque = structuredClone(EXEMPLO); historico = []; diasAviso = 30;
+}
+function salvar() { try { localStorage.setItem(KEY, JSON.stringify({ estoque, historico, diasAviso })); } catch (e) {} }
+
+// ---------- Regras ----------
+function hojeISO() { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+function diasAte(iso) { return Math.round((new Date(iso + "T00:00") - new Date(hojeISO() + "T00:00")) / 864e5); }
+const vencido = p => !!p.validade && p.validade < hojeISO();                       // RN-01
+const proximo = p => !vencido(p) && diasAte(p.validade) <= diasAviso;
+const baixo = p => p.quantidade <= p.estoque_minimo;                                 // RN-03
+function situacoes(p) { const s = []; if (vencido(p)) s.push("vencido"); if (proximo(p)) s.push("proximo"); if (baixo(p)) s.push("baixo"); return s.length ? s : ["regular"]; }
+const PILL = {
+  vencido: '<span class="pill red">Vencido</span>', proximo: '<span class="pill amber">Próximo do vencimento</span>',
+  baixo: '<span class="pill amber">Estoque baixo</span>', regular: '<span class="pill green">Regular</span>'
+};
+
+const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+const fmt = n => nf.format(n);
+function br(iso) { if (!iso) return "—"; const [a, m, d] = iso.split("-"); return `${d}/${m}/${a}`; }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function numero(v) { if (v === "" || v == null) return null; const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) ? n : NaN; }
+function nome(cod, p) { return `${esc(cod)} · ${p.exemplo ? '<span class="tag-ex">EXEMPLO</span> · ' : ""}${esc(p.descricao)}`; }
+
+// Movimentação central (RF06, RF07, RN-01, RN-04, RF11) — devolve mensagem de erro ou null
+function movimentar(cod, tipo, q) {
+  const p = estoque[cod];
+  if (!p) return "Produto não localizado no sistema.";
+  if (tipo === "saida" && vencido(p)) return `Movimentação bloqueada: produto vencido em ${br(p.validade)} não pode ser retirado (RN-01).`;
+  if (q === null || Number.isNaN(q)) return "Digite uma quantidade válida.";
+  if (q <= 0) return "A quantidade deve ser maior que zero.";
+  if (tipo === "saida" && q > p.quantidade) return `Quantidade insuficiente. Saldo disponível: ${fmt(p.quantidade)} (RN-04).`;
+  p.quantidade = Math.round((p.quantidade + (tipo === "entrada" ? q : -q)) * 1000) / 1000;
+  const d = new Date(), z = n => String(n).padStart(2, "0");
+  historico.push({ data: `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`,
+    codigo: cod, descricao: p.descricao, tipo: tipo.toUpperCase(), quantidade: q });
+  salvar(); renderTudo();
+  toast(`${tipo === "entrada" ? "Entrada" : "Saída"} registrada. Novo saldo de ${cod}: ${fmt(p.quantidade)}.`);
+  return null;
+}
+
+// ---------- Renderização ----------
+const $ = id => document.getElementById(id);
+function kpisHTML() {
+  const ps = Object.values(estoque);
+  const k = [
+    ["Produtos", ps.length, ""],
+    ["Quantidade total", fmt(ps.reduce((s, p) => s + p.quantidade, 0)), ""],
+    ["Estoque baixo", ps.filter(baixo).length, "amber"],
+    ["Próximos do vencimento", ps.filter(proximo).length, "amber"],
+    ["Vencidos", ps.filter(vencido).length, "red"]
+  ];
+  return k.map(([l, v, c]) => `<div class="kpi ${c}"><span>${l}</span><strong>${v}</strong></div>`).join("");
+}
+function atencaoHTML(detalhe) {
+  const itens = Object.entries(estoque).filter(([, p]) => vencido(p) || proximo(p) || baixo(p));
+  if (!itens.length) return `<p class="ok-line">Nenhum risco ou irregularidade detectada no momento.</p>`;
+  return `<ul class="list">${itens.map(([cod, p]) => {
+    let det = "";
+    if (detalhe) {
+      const partes = [];
+      if (vencido(p)) partes.push(`venceu em ${br(p.validade)} — saída bloqueada`);
+      else if (proximo(p)) partes.push(`vence em ${br(p.validade)} (${diasAte(p.validade)} dias)`);
+      if (baixo(p)) partes.push(`saldo ${fmt(p.quantidade)}, mínimo ${fmt(p.estoque_minimo)}`);
+      det = `<span class="item-detail">Lote ${esc(p.lote)} · ${partes.join(" · ")}</span>`;
+    }
+    return `<li><span class="item-name">${nome(cod, p)}${det}</span><span class="pills">${situacoes(p).map(s => PILL[s]).join("")}</span></li>`;
+  }).join("")}</ul>`;
+}
+function renderDashboard() { $("kpis").innerHTML = kpisHTML(); $("attention").innerHTML = atencaoHTML(false); }
+function renderAlertas() {
+  $("alert-full").innerHTML = atencaoHTML(true);
+  const n = Object.values(estoque).filter(p => vencido(p) || proximo(p) || baixo(p)).length;
+  $("nav-badge").textContent = n; $("nav-badge").hidden = !n;
+}
+function renderProdutos() {
+  const termo = $("busca").value.trim().toLowerCase(), filtro = $("filtro").value;
+  const linhas = Object.entries(estoque).filter(([cod, p]) =>
+    (!termo || cod.toLowerCase().includes(termo) || p.descricao.toLowerCase().includes(termo)) && (!filtro || situacoes(p).includes(filtro)));
+  $("tbody").innerHTML = linhas.length ? linhas.map(([cod, p]) => `<tr>
+    <td class="code">${esc(cod)}</td><td>${p.exemplo ? '<span class="tag-ex">EXEMPLO</span> · ' : ""}${esc(p.descricao)}</td>
+    <td class="num">${fmt(p.quantidade)}</td><td class="num">${fmt(p.estoque_minimo)}</td>
+    <td>${esc(p.lote)}</td><td>${br(p.validade)}</td>
+    <td><span class="pills">${situacoes(p).map(s => PILL[s]).join("")}</span></td>
+    <td><div class="row-actions">
+      <button class="btn sm" data-acao="entrada" data-cod="${esc(cod)}">+ Entrada</button>
+      <button class="btn sm" data-acao="saida" data-cod="${esc(cod)}" ${vencido(p) ? 'disabled title="Produto vencido: saída bloqueada (RN-01)"' : ""}>− Saída</button>
+      <button class="btn sm" data-acao="editar" data-cod="${esc(cod)}">Editar</button>
+    </div></td></tr>`).join("") : `<tr><td colspan="8" class="empty">Nenhum produto encontrado.</td></tr>`;
+}
+function renderMov() {
+  const sel = $("m-produto"), atual = sel.value;
+  sel.innerHTML = Object.entries(estoque).map(([cod, p]) => `<option value="${esc(cod)}">${esc(cod)} · ${esc(p.descricao)}</option>`).join("");
+  if (estoque[atual]) sel.value = atual;
+  atualizaSaldo();
+  $("hbody").innerHTML = historico.length ? historico.slice().reverse().map(h => `<tr>
+    <td>${esc(h.data)}</td><td>${h.tipo === "ENTRADA" ? '<span class="pill green">Entrada</span>' : '<span class="pill amber">Saída</span>'}</td>
+    <td class="num">${fmt(h.quantidade)}</td><td class="code">${esc(h.codigo)}</td><td>${esc(h.descricao)}</td></tr>`).join("")
+    : `<tr><td colspan="5" class="empty">Nenhuma movimentação registrada ainda.</td></tr>`;
+}
+function atualizaSaldo() {
+  const p = estoque[$("m-produto").value];
+  $("m-saldo").textContent = p ? `Saldo atual: ${fmt(p.quantidade)}${vencido(p) ? " · vencido, saída bloqueada" : ""}` : "";
+}
+function renderRelatorios() {
+  const ps = Object.values(estoque);
+  const ent = historico.filter(h => h.tipo === "ENTRADA").reduce((s, h) => s + h.quantidade, 0);
+  const sai = historico.filter(h => h.tipo === "SAIDA").reduce((s, h) => s + h.quantidade, 0);
+  $("rep-kpis").innerHTML = [
+    ["Movimentações", historico.length, ""], ["Total de entradas", fmt(ent), ""], ["Total de saídas", fmt(sai), "amber"],
+    ["Itens a repor", ps.filter(baixo).length, "amber"], ["Itens vencidos", ps.filter(vencido).length, "red"]
+  ].map(([l, v, c]) => `<div class="kpi ${c}"><span>${l}</span><strong>${v}</strong></div>`).join("");
+  const total = ps.length || 1;
+  const grupos = [["Regular", ps.filter(p => situacoes(p)[0] === "regular").length, "var(--blue)"],
+    ["Estoque baixo", ps.filter(baixo).length, "var(--amber)"], ["Próx. do vencimento", ps.filter(proximo).length, "var(--amber)"],
+    ["Vencidos", ps.filter(vencido).length, "var(--red)"]];
+  $("rep-bars").innerHTML = grupos.map(([l, n, c]) => `<div class="bar-row"><span>${l}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${n / total * 100}%;background:${c}"></div></div><b>${n}</b></div>`).join("");
+  const repor = Object.entries(estoque).filter(([, p]) => baixo(p));
+  $("rep-repor").innerHTML = repor.length ? `<ul class="list">${repor.map(([cod, p]) =>
+    `<li><span class="item-name">${nome(cod, p)}<span class="item-detail">Saldo ${fmt(p.quantidade)} · mínimo ${fmt(p.estoque_minimo)}</span></span>
+     <span class="pill amber">Repor ao menos ${fmt(Math.round((p.estoque_minimo - p.quantidade + 1) * 100) / 100)}</span></li>`).join("")}</ul>`
+    : `<p class="ok-line">Todos os itens estão acima do estoque mínimo.</p>`;
+}
+function renderTudo() { renderDashboard(); renderAlertas(); renderProdutos(); renderMov(); renderRelatorios(); $("cfg-dias").value = diasAviso; }
+
+let tt;
+function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => t.hidden = true, 3200); }
+function erro(el, m) { el.textContent = m || ""; el.hidden = !m; return false; }
+
+// ---------- Navegação ----------
+const TITULOS = { dashboard: "Visão geral do estoque", produtos: "Cadastro de produtos", movimentacoes: "Entradas, saídas e histórico",
+  alertas: "Alertas de segurança e validade", relatorios: "Relatórios do estoque", configuracoes: "Configurações do sistema" };
+function abrir(view) {
+  if (!TITULOS[view]) view = "dashboard";
+  document.querySelectorAll(".nav button").forEach(b => b.dataset.view === view ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
+  Object.keys(TITULOS).forEach(v => $("view-" + v).hidden = v !== view);
+  $("page-title").textContent = TITULOS[view];
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll(".nav button").forEach(b => b.addEventListener("click", () => abrir(b.dataset.view)));
+
+// ---------- Produtos ----------
+$("busca").addEventListener("input", renderProdutos);
+$("filtro").addEventListener("change", renderProdutos);
+let editando = null;
+function abrirProduto(cod) {
+  editando = cod || null;
+  const p = cod ? estoque[cod] : { descricao: "", lote: "", validade: "", quantidade: "", estoque_minimo: "" };
+  $("p-titulo").textContent = cod ? `Editar produto ${cod}` : "Novo produto";
+  $("p-ok").textContent = cod ? "Salvar alterações" : "Cadastrar";
+  $("p-codigo").value = cod || ""; $("p-codigo").disabled = !!cod;
+  $("p-descricao").value = p.descricao; $("p-lote").value = p.lote; $("p-validade").value = p.validade;
+  $("p-quantidade").value = p.quantidade; $("p-minimo").value = p.estoque_minimo;
+  $("p-modo-avulso").checked = true; $("p-caixas").value = ""; $("p-por-caixa").value = p.unidades_por_caixa || "";
+  atualizaModo();
+  $("p-scan-btns").hidden = !!cod; $("p-scan-status").hidden = true;
+  erro($("p-erro")); $("dlg-prod").showModal(); (cod ? $("p-descricao") : $("p-codigo")).focus();
+}
+// Caixas: ativa os dois campos e calcula a quantidade total (caixas × unidades por caixa)
+const modoCaixas = () => $("p-modo-caixas").checked;
+function atualizaModo() {
+  const cx = modoCaixas();
+  $("p-caixas").disabled = $("p-por-caixa").disabled = !cx;
+  $("p-quantidade").disabled = cx;
+  $("p-calc").hidden = !cx;
+  if (cx) atualizaCalc();
+}
+function atualizaCalc() {
+  const c = numero($("p-caixas").value), u = numero($("p-por-caixa").value);
+  if (c > 0 && u > 0) {
+    const total = Math.round(c * u * 1000) / 1000;
+    $("p-quantidade").value = total;
+    $("p-calc").innerHTML = `${fmt(c)} ${c === 1 ? "caixa" : "caixas"} × ${fmt(u)} un. = <b>${fmt(total)} unidades</b>`;
+  } else {
+    $("p-quantidade").value = "";
+    $("p-calc").textContent = "Informe o número de caixas e as unidades por caixa para calcular o total.";
+  }
+}
+document.querySelectorAll('input[name="p-modo"]').forEach(r => r.addEventListener("change", () => {
+  atualizaModo(); if (modoCaixas()) $("p-caixas").focus();
+}));
+$("p-caixas").addEventListener("input", atualizaCalc);
+$("p-por-caixa").addEventListener("input", atualizaCalc);
+$("btn-novo").addEventListener("click", () => abrirProduto());
+$("form-prod").addEventListener("submit", e => {
+  e.preventDefault();
+  const el = $("p-erro"), codigo = $("p-codigo").value.trim(), descricao = $("p-descricao").value.trim(),
+        lote = $("p-lote").value.trim(), validade = $("p-validade").value;
+  const qtd = numero($("p-quantidade").value), min = numero($("p-minimo").value);
+  if (!editando) {
+    if (!codigo) return erro(el, "Informe o código do produto. Ele é obrigatório (RN-07).");
+    if (estoque[codigo]) return erro(el, `Já existe um produto com o código ${codigo}.`);
+  }
+  if (!descricao || !lote || !validade) return erro(el, "Preencha descrição, lote e validade. Todos são obrigatórios (RN-07).");
+  let porCaixa = (estoque[editando] || {}).unidades_por_caixa;
+  if (modoCaixas()) {
+    const c = numero($("p-caixas").value), u = numero($("p-por-caixa").value);
+    if (c === null || Number.isNaN(c) || !Number.isInteger(c) || c < 1) return erro(el, "Informe o número de caixas como um número inteiro a partir de 1.");
+    if (u === null || Number.isNaN(u) || u <= 0) return erro(el, "Informe quantas unidades vêm em cada caixa (maior que zero).");
+    porCaixa = u;
+  }
+  if (qtd === null || min === null || Number.isNaN(qtd) || Number.isNaN(min)) return erro(el, "Quantidade e estoque mínimo devem ser números.");
+  if (qtd < 0 || min < 0) return erro(el, "Quantidades não podem ser negativas (RN-07/RNF10).");
+  const cod = editando || codigo;
+  estoque[cod] = { ...(estoque[cod] || {}), descricao, lote, validade, quantidade: qtd, estoque_minimo: min };
+  if (porCaixa) estoque[cod].unidades_por_caixa = porCaixa;
+  salvar(); renderTudo(); $("dlg-prod").close();
+  toast(editando ? "Produto atualizado." : `Produto “${descricao}” cadastrado.`);
+});
+$("tbody").addEventListener("click", e => {
+  const b = e.target.closest("button[data-acao]"); if (!b || b.disabled) return;
+  const { acao, cod } = b.dataset;
+  if (acao === "editar") return abrirProduto(cod);
+  movRapida = { cod, tipo: acao };
+  $("mv-titulo").textContent = acao === "entrada" ? "Registrar entrada" : "Registrar saída";
+  $("mv-sub").innerHTML = `${nome(cod, estoque[cod])} — saldo atual: <b>${fmt(estoque[cod].quantidade)}</b>`;
+  $("mv-qtd").value = ""; erro($("mv-erro")); $("dlg-mov").showModal(); $("mv-qtd").focus();
+});
+
+// ---------- Movimentações ----------
+let movRapida = null;
+$("form-mov").addEventListener("submit", e => {
+  e.preventDefault();
+  const r = movimentar(movRapida.cod, movRapida.tipo, numero($("mv-qtd").value));
+  r ? erro($("mv-erro"), r) : $("dlg-mov").close();
+});
+$("m-produto").addEventListener("change", atualizaSaldo);
+$("form-mov-page").addEventListener("submit", e => {
+  e.preventDefault();
+  const cam = modoCamera();
+  if (cam && !scanCod) return erro($("m-erro"), "Leia o código do produto com a câmera ou digite o código antes de registrar.");
+  const cod = cam ? scanCod : $("m-produto").value;
+  const r = movimentar(cod, $("m-tipo").value, numero($("m-qtd").value));
+  if (r) return erro($("m-erro"), r);
+  erro($("m-erro")); $("m-qtd").value = "";
+  if (cam) { scanCod = null; status("info", "Movimentação registrada. Leia o próximo código."); }
+});
+
+// ---------- Leitura por câmera (código de barras / QR code) ----------
+let scanner = null, scanCod = null;
+const modoCamera = () => $("m-modo-camera").checked;
+function status(tipo, html) { const s = $("scan-status"); s.className = "scan-status " + tipo; s.innerHTML = html; s.hidden = false; }
+function getScanner() {
+  if (scanner) return scanner;
+  if (typeof Html5Qrcode === "undefined") return null;
+  scanner = new Html5Qrcode("leitor", { verbose: false, experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
+  return scanner;
+}
+async function pararCamera() {
+  if (scanner && scanner.isScanning) { try { await scanner.stop(); } catch (e) {} }
+  $("leitor").hidden = true; $("btn-cam").textContent = "Abrir câmera";
+}
+// O texto lido é o código do produto (o QR code pode conter só o código)
+function codigoLido(texto) {
+  const cod = String(texto || "").trim();
+  if (!cod) return;
+  if (navigator.vibrate) navigator.vibrate(80);
+  const p = estoque[cod];
+  if (!p) {
+    scanCod = null;
+    status("bad", `<span>Código <b>${esc(cod)}</b> não está cadastrado.</span><button type="button" class="btn sm" id="scan-cadastrar">Cadastrar com este código</button>`);
+    $("scan-cadastrar").addEventListener("click", () => { abrirProduto(); $("p-codigo").value = cod; $("p-descricao").focus(); });
+    return;
+  }
+  scanCod = cod; $("m-produto").value = cod; atualizaSaldo();
+  status("ok", `<span>Produto identificado: <b>${nome(cod, p)}</b> · saldo ${fmt(p.quantidade)}${vencido(p) ? " · <b>vencido, saída bloqueada</b>" : ""}</span>`);
+  $("m-qtd").focus();
+}
+async function abrirCamera() {
+  const s = getScanner();
+  if (!s) return status("bad", "O leitor de códigos não carregou. Verifique a conexão com a internet e recarregue a página.");
+  if (s.isScanning) return pararCamera();
+  $("leitor").hidden = false; $("btn-cam").textContent = "Fechar câmera";
+  status("info", "Aponte a câmera para o código de barras ou QR code.");
+  try {
+    await s.start({ facingMode: "environment" }, { fps: 10, qrbox: (w, h) => ({ width: Math.floor(w * .8), height: Math.floor(h * .6) }) },
+      async texto => { await pararCamera(); codigoLido(texto); }, () => {});
+  } catch (e) {
+    $("leitor").hidden = true; $("btn-cam").textContent = "Abrir câmera";
+    status("bad", "Não foi possível abrir a câmera ao vivo aqui (permissão negada ou recurso bloqueado). Use “Tirar foto do código”: no celular ele abre a câmera direto.");
+  }
+}
+function atualizaModoMov() {
+  const cam = modoCamera();
+  $("scan-area").hidden = !cam; $("lbl-m-produto").hidden = cam;
+  erro($("m-erro"));
+  if (!cam) { pararCamera(); scanCod = null; $("scan-status").hidden = true; }
+}
+document.querySelectorAll('input[name="m-modo"]').forEach(r => r.addEventListener("change", atualizaModoMov));
+$("btn-cam").addEventListener("click", abrirCamera);
+$("scan-foto").addEventListener("change", async e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  const s = getScanner();
+  if (!s) return status("bad", "O leitor de códigos não carregou. Verifique a conexão com a internet e recarregue a página.");
+  await pararCamera();
+  status("info", "Lendo a imagem…");
+  try { codigoLido(await s.scanFile(f, false)); }
+  catch (err) { status("bad", "Nenhum código encontrado na foto. Tente de novo com o código mais perto, centralizado e bem iluminado."); }
+});
+$("scan-codigo").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  e.preventDefault(); codigoLido(e.target.value); e.target.value = "";
+});
+// Fecha a câmera ao sair da tela de movimentações
+document.querySelectorAll(".nav button").forEach(b => b.addEventListener("click", () => { if (b.dataset.view !== "movimentacoes") pararCamera(); }));
+document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
+
+// ---------- Cadastro de produto a partir do código lido ----------
+let scannerProd = null;
+function getScannerProd() {
+  if (scannerProd) return scannerProd;
+  if (typeof Html5Qrcode === "undefined") return null;
+  scannerProd = new Html5Qrcode("leitor-prod", { verbose: false, experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
+  return scannerProd;
+}
+function statusProd(tipo, html) { const s = $("p-scan-status"); s.className = "scan-status " + tipo; s.innerHTML = html; s.hidden = false; }
+async function pararCameraProd() {
+  if (scannerProd && scannerProd.isScanning) { try { await scannerProd.stop(); } catch (e) {} }
+  $("leitor-prod").hidden = true; $("p-btn-cam").textContent = "Ler com a câmera";
+}
+function codigoLidoProd(texto) {
+  const cod = String(texto || "").trim();
+  if (!cod) return;
+  if (navigator.vibrate) navigator.vibrate(80);
+  if (estoque[cod]) {
+    statusProd("bad", `<span>O código <b>${esc(cod)}</b> já está cadastrado (${esc(estoque[cod].descricao)}). Para somar ao estoque, use Movimentações.</span>`);
+    return;
+  }
+  $("p-codigo").value = cod;
+  statusProd("ok", `<span>Código lido: <b>${esc(cod)}</b>. Agora preencha os demais dados.</span>`);
+  $("p-descricao").focus();
+}
+async function abrirCameraProd() {
+  const s = getScannerProd();
+  if (!s) return statusProd("bad", "O leitor de códigos não carregou. Verifique a conexão com a internet e recarregue a página.");
+  if (s.isScanning) return pararCameraProd();
+  $("leitor-prod").hidden = false; $("p-btn-cam").textContent = "Fechar câmera";
+  statusProd("info", "Aponte a câmera para o código de barras ou QR code da embalagem.");
+  try {
+    await s.start({ facingMode: "environment" }, { fps: 10, qrbox: (w, h) => ({ width: Math.floor(w * .8), height: Math.floor(h * .6) }) },
+      async texto => { await pararCameraProd(); codigoLidoProd(texto); }, () => {});
+  } catch (e) {
+    $("leitor-prod").hidden = true; $("p-btn-cam").textContent = "Ler com a câmera";
+    statusProd("bad", "Não foi possível abrir a câmera ao vivo aqui (permissão negada ou recurso bloqueado). Use “Ler de uma foto”: no celular ele abre a câmera direto.");
+  }
+}
+$("p-btn-cam").addEventListener("click", abrirCameraProd);
+$("p-foto").addEventListener("change", async e => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  const s = getScannerProd();
+  if (!s) return statusProd("bad", "O leitor de códigos não carregou. Verifique a conexão com a internet e recarregue a página.");
+  await pararCameraProd();
+  statusProd("info", "Lendo a imagem…");
+  try { codigoLidoProd(await s.scanFile(f, false)); }
+  catch (err) { statusProd("bad", "Nenhum código encontrado na foto. Tente de novo com o código mais perto, centralizado e bem iluminado."); }
+});
+$("dlg-prod").addEventListener("close", pararCameraProd);
+$("btn-novo-scan").addEventListener("click", () => { abrirProduto(); abrirCameraProd(); });
+
+// ---------- Configurações ----------
+$("form-cfg").addEventListener("submit", e => {
+  e.preventDefault();
+  const d = numero($("cfg-dias").value);
+  if (!d || d < 1 || !Number.isInteger(d)) return toast("Informe um número inteiro de dias, a partir de 1.");
+  diasAviso = d; salvar(); renderTudo(); toast(`Aviso de vencimento ajustado para ${d} dias.`);
+});
+$("reset-area").addEventListener("click", e => {
+  const a = $("reset-area"), padrao = `<button class="btn danger" type="button" id="btn-reset">Restaurar dados de exemplo</button>`;
+  if (e.target.id === "btn-reset") a.innerHTML = `<span>Apagar todos os produtos e o histórico?</span><button class="btn danger" type="button" id="reset-sim">Sim, restaurar</button><button class="btn" type="button" id="reset-nao">Cancelar</button>`;
+  else if (e.target.id === "reset-sim") { estoque = structuredClone(EXEMPLO); historico = []; diasAviso = 30; salvar(); renderTudo(); a.innerHTML = padrao; toast("Dados de exemplo restaurados."); }
+  else if (e.target.id === "reset-nao") a.innerHTML = padrao;
+});
+
+$("date").textContent = new Date().toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+carregar(); renderTudo(); abrir(location.hash.slice(1));
+</script>
