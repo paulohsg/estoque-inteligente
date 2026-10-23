@@ -24,6 +24,12 @@ Sistema web de controle de estoque industrial, criado a partir da versão em Pyt
 
 Os dados ficam salvos no navegador de quem usa (`localStorage`). Cada computador ou celular tem os seus próprios dados.
 
+## Publicação (GitHub Pages)
+
+O site é publicado direto da branch `main`. Configuração (feita uma vez):
+**Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main` / `/ (root)` → Save.**
+Depois de cada envio para a `main`, o site atualiza sozinho em 1 ou 2 minutos.
+
 ## Câmera
 
 A leitura de códigos usa a biblioteca [html5-qrcode](https://github.com/mebjas/html5-qrcode). A câmera ao vivo só funciona em páginas com HTTPS (como o GitHub Pages) ou abrindo o `index.html` direto no computador. O navegador pede permissão na primeira vez.
@@ -51,5 +57,6 @@ index.html                  o sistema (página única)
 legado/estoque_terminal.py  versão original em Python
 tests/estoque.spec.js       testes automáticos
 tests/fixtures/             imagens e vídeo de códigos usados nos testes
-.github/workflows/          testes e publicação automáticos
+.github/workflows/          testes automáticos
+.nojekyll                   publica os arquivos como estão (sem Jekyll)
 ```
