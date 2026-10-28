@@ -2,7 +2,7 @@
 
 Sistema web de controle de estoque industrial, criado a partir da versão em Python para terminal (`legado/estoque_terminal.py`).
 
-**Acesse:** https://senaitecds-lab.github.io/estoque-senai/
+**Acesse:** https://paulohsg.github.io/estoque-inteligente/
 
 ## Funções
 
