@@ -9,17 +9,19 @@ Sistema web de controle de estoque industrial, criado a partir da versão em Pyt
 - **Dashboard:** indicadores (produtos, quantidade total, estoque baixo, próximos do vencimento, vencidos) e lista de itens que precisam de atenção.
 - **Produtos:** cadastro, edição, busca e filtro. A quantidade pode ser informada em unidades ou em caixas (número de caixas × unidades por caixa).
 - **Cadastro por código:** o código do produto pode ser lido de um código de barras ou QR code, pela câmera ou por uma foto.
-- **Movimentações:** entradas e saídas, escolhendo o produto na lista ou lendo o código com a câmera. Inclui o histórico completo.
+- **Lotes:** cada produto pode ter vários lotes, cada um com sua validade e quantidade. A entrada registra o lote; se o lote já existe, a quantidade é somada a ele.
+- **Movimentações:** entradas, saídas e descarte de lotes vencidos, escolhendo o produto na lista ou lendo o código com a câmera. A saída tira primeiro do lote que vence antes (PVPS) ou de um lote escolhido. Inclui o histórico completo, com o lote de cada movimentação.
 - **Alertas, Relatórios e Configurações:** alertas de validade e estoque mínimo, totais, reposição necessária e prazo do aviso de vencimento.
 
 ## Regras de negócio
 
 | Regra | Comportamento |
 |---|---|
-| RN-01 | Produto vencido não pode ter saída |
-| RN-03 | Alerta quando a quantidade fica igual ou abaixo do estoque mínimo |
-| RN-04 | Saída maior que o saldo é recusada |
-| RN-05 / RN-07 | Código, descrição, lote e validade são obrigatórios; o código é único; quantidades não podem ser negativas |
+| RN-01 | Lote vencido não pode ter saída para uso; só pode ser descartado |
+| RN-03 | Alerta quando o disponível (lotes dentro da validade) fica igual ou abaixo do estoque mínimo |
+| RN-04 | Saída maior que o disponível (sem contar lotes vencidos) é recusada |
+| RN-05 / RN-07 | Código, descrição, lote e validade são obrigatórios; o código é único; um lote tem uma única validade; não entra lote já vencido; quantidades não podem ser negativas |
+| PVPS | Na saída automática, o lote que vence primeiro sai primeiro |
 | RF11 / RN-10 | Toda movimentação fica registrada com data e hora |
 
 Os dados ficam salvos no navegador de quem usa (`localStorage`). Cada computador ou celular tem os seus próprios dados.

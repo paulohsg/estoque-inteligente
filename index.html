@@ -84,7 +84,7 @@ th { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spac
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums }
 .code { font-weight: 700; white-space: nowrap }
 .tag-ex { font-weight: 600; color: var(--muted) }
-.row-actions { display: flex; gap: 6px; justify-content: flex-end }
+.row-actions { display: flex; flex-direction: column; gap: 4px; align-items: stretch; margin-left: auto; width: max-content }
 .empty { color: var(--muted); text-align: center; padding: 28px }
 
 /* Controles */
@@ -126,6 +126,14 @@ input:disabled { background: var(--line-soft); color: var(--muted); cursor: not-
 .scan-status.ok { background: var(--green-bg); color: var(--green-fg) }
 .scan-status.bad { background: var(--red-bg); color: var(--red-fg) }
 .scan-status.info { background: var(--line-soft); color: var(--muted) }
+.campos-lote { margin-top: 14px }
+.secao-lote { margin: 6px 0 -4px; font-weight: 700; font-size: .95rem; padding-top: 12px; border-top: 1px solid var(--line-soft) }
+.lotes { display: grid; gap: 3px; font-size: .86rem; font-variant-numeric: tabular-nums }
+.lote-linha { white-space: nowrap }
+.lote-linha.vencido { color: var(--red-fg); font-weight: 600 }
+.lote-linha.proximo { color: var(--amber-fg); font-weight: 600 }
+.lotes-info { background: var(--line-soft); border-radius: 8px; padding: 10px 12px; font-size: .9rem }
+.lotes-info p { margin: 0 0 4px; color: var(--muted) }
 .err { color: var(--red-fg); background: var(--red-bg); border-radius: 8px; padding: 8px 12px; font-size: .9rem; margin: 14px 0 0; font-weight: 500 }
 .info { color: var(--muted); font-size: .9rem; margin: 14px 0 0 }
 
@@ -201,7 +209,7 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
     <section id="view-produtos" hidden>
       <div class="card" style="margin-top:0">
         <div class="card-head">
-          <div><h2>Produtos cadastrados</h2><p class="sub">Pesquise, movimente ou edite os materiais.</p></div>
+          <div><h2>Produtos cadastrados</h2><p class="sub">Cada produto mostra seus lotes em estoque, com quantidade e validade.</p></div>
           <div class="head-actions">
             <button class="btn" id="btn-novo-scan">Cadastrar lendo código</button>
             <button class="btn primary" id="btn-novo">+ Novo produto</button>
@@ -219,7 +227,7 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
         </div>
         <div class="table-box" style="margin-top:12px">
           <table>
-            <thead><tr><th>Código</th><th>Descrição</th><th class="num">Qtd</th><th class="num">Mín.</th><th>Lote</th><th>Validade</th><th>Situação</th><th class="num">Ações</th></tr></thead>
+            <thead><tr><th>Código</th><th>Descrição</th><th class="num">Disponível</th><th class="num">Mín.</th><th>Lotes (quantidade · validade)</th><th>Situação</th><th class="num">Ações</th></tr></thead>
             <tbody id="tbody"></tbody>
           </table>
         </div>
@@ -230,7 +238,7 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
     <section id="view-movimentacoes" hidden>
       <div class="card" style="margin-top:0">
         <h2>Registrar movimentação</h2>
-        <p class="sub">Entradas somam ao saldo; saídas são bloqueadas para produtos vencidos ou sem saldo.</p>
+        <p class="sub">Cada entrada é registrada no seu lote. A saída usa primeiro o lote que vence antes; lotes vencidos só podem ser descartados.</p>
         <form id="form-mov-page" novalidate style="margin-top:16px">
           <fieldset class="modo" style="margin-bottom:16px">
             <legend>Como identificar o produto</legend>
@@ -252,8 +260,16 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
           </fieldset>
           <div class="grid three">
             <label id="lbl-m-produto">Produto<select id="m-produto"></select></label>
-            <label>Tipo<select id="m-tipo"><option value="entrada">Entrada</option><option value="saida">Saída</option></select></label>
+            <label>Tipo<select id="m-tipo"><option value="entrada">Entrada</option><option value="saida">Saída</option><option value="descarte">Descarte de lote vencido</option></select></label>
             <label>Quantidade<input id="m-qtd" type="number" min="0" step="any" inputmode="decimal"></label>
+          </div>
+          <div class="grid three campos-lote" id="m-campos-entrada">
+            <label>Lote do fabricante <span class="hint">Lote já existente: a quantidade é somada a ele</span><input id="m-lote" list="m-lotes-lista" autocomplete="off"></label>
+            <label>Data de validade<input id="m-validade" type="date"></label>
+          </div>
+          <datalist id="m-lotes-lista"></datalist>
+          <div class="grid three campos-lote" id="m-campos-saida" hidden>
+            <label id="lbl-m-lote-saida">Lote<select id="m-lote-saida"></select></label>
           </div>
           <p class="err" id="m-erro" hidden></p>
           <div class="form-actions"><button class="btn primary" type="submit">Registrar</button><span class="hint" id="m-saldo"></span></div>
@@ -264,7 +280,7 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
         <p class="sub">Rastreabilidade de todas as entradas e saídas (RF11 / RN-10).</p>
         <div class="table-box" style="margin-top:12px">
           <table>
-            <thead><tr><th>Data / hora</th><th>Tipo</th><th class="num">Qtd</th><th>Código</th><th>Descrição</th></tr></thead>
+            <thead><tr><th>Data / hora</th><th>Tipo</th><th class="num">Qtd</th><th>Código</th><th>Descrição</th><th>Lote</th><th>Validade</th></tr></thead>
             <tbody id="hbody"></tbody>
           </table>
         </div>
@@ -331,9 +347,12 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
           <div id="p-scan-status" class="scan-status" hidden></div>
         </div>
         <label class="full">Descrição / nome do material<input id="p-descricao" autocomplete="off"></label>
-        <label>Lote do fabricante <span class="hint">RN-05</span><input id="p-lote" autocomplete="off"></label>
-        <label>Data de validade<input id="p-validade" type="date"></label>
-        <fieldset class="full modo">
+        <label>Estoque mínimo <span class="hint">Alerta quando o disponível fica igual ou abaixo</span><input id="p-minimo" type="number" min="0" step="any" inputmode="decimal"></label>
+        <span></span>
+        <p class="full secao-lote so-novo">Primeiro lote (entrada inicial)</p>
+        <label class="so-novo">Lote do fabricante <span class="hint">RN-05</span><input id="p-lote" autocomplete="off"></label>
+        <label class="so-novo">Data de validade<input id="p-validade" type="date"></label>
+        <fieldset class="full modo so-novo">
           <legend>Forma de entrada da quantidade</legend>
           <div class="radios">
             <label class="radio"><input type="radio" name="p-modo" id="p-modo-avulso" value="avulso" checked> Pequenas quantidades</label>
@@ -345,24 +364,11 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
           </div>
           <p class="calc" id="p-calc" hidden></p>
         </fieldset>
-        <label>Quantidade total<input id="p-quantidade" type="number" min="0" step="any" inputmode="decimal"></label>
-        <label>Estoque mínimo<input id="p-minimo" type="number" min="0" step="any" inputmode="decimal"></label>
+        <label class="so-novo">Quantidade total<input id="p-quantidade" type="number" min="0" step="any" inputmode="decimal"></label>
+        <div class="full so-edicao" id="p-lotes-info"></div>
       </div>
       <p class="err" id="p-erro" hidden></p>
       <div class="form-actions"><button class="btn primary" type="submit" id="p-ok">Cadastrar</button><button class="btn" type="button" data-close>Cancelar</button></div>
-    </div>
-  </form>
-</dialog>
-
-<!-- Diálogo: movimentação rápida -->
-<dialog id="dlg-mov">
-  <form id="form-mov" novalidate>
-    <div class="dlg-head"><h2 id="mv-titulo">Registrar entrada</h2><button class="x" type="button" data-close aria-label="Fechar">×</button></div>
-    <div class="dlg-body">
-      <p class="sub" id="mv-sub" style="margin:0 0 14px"></p>
-      <label>Quantidade<input id="mv-qtd" type="number" min="0" step="any" inputmode="decimal"></label>
-      <p class="err" id="mv-erro" hidden></p>
-      <div class="form-actions"><button class="btn primary" type="submit">Confirmar</button><button class="btn" type="button" data-close>Cancelar</button></div>
     </div>
   </form>
 </dialog>
@@ -372,18 +378,35 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 // ---------- Dados ----------
+// Cada produto tem vários lotes; cada lote tem sua própria validade e quantidade.
 const EXEMPLO = {
-  "EX-CHA-01": { descricao: "Chapa de aço inox", quantidade: 40, lote: "L-2026A", validade: "2027-12-30", estoque_minimo: 10, exemplo: true },
-  "EX-LUB-02": { descricao: "Lubrificante industrial", quantidade: 8.5, lote: "L-LB77", validade: "2026-11-10", estoque_minimo: 10, exemplo: true },
-  "EX-RES-03": { descricao: "Resina industrial", quantidade: 12, lote: "L-99B", validade: "2026-10-15", estoque_minimo: 5, exemplo: true }
+  "EX-CHA-01": { descricao: "Chapa de aço inox", estoque_minimo: 10, exemplo: true, lotes: [
+    { lote: "L-2026A", validade: "2027-12-30", quantidade: 25 },
+    { lote: "L-2026B", validade: "2028-06-30", quantidade: 15 }] },
+  "EX-LUB-02": { descricao: "Lubrificante industrial", estoque_minimo: 10, exemplo: true, lotes: [
+    { lote: "L-LB77", validade: "2026-11-10", quantidade: 8.5 }] },
+  "EX-RES-03": { descricao: "Resina industrial", estoque_minimo: 5, exemplo: true, lotes: [
+    { lote: "L-99B", validade: "2026-10-15", quantidade: 4 },
+    { lote: "L-120C", validade: "2027-03-01", quantidade: 8 }] }
 };
-const KEY = "estoque-senai-v2";
+const KEY = "estoque-senai-v3", KEY_ANTIGA = "estoque-senai-v2";
 let estoque, historico, diasAviso;
 
 function carregar() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
     if (s && s.estoque) { estoque = s.estoque; historico = s.historico || []; diasAviso = s.diasAviso || 30; return; }
+    // Converte os dados da versão anterior (um lote por produto)
+    const v2 = JSON.parse(localStorage.getItem(KEY_ANTIGA));
+    if (v2 && v2.estoque) {
+      estoque = {};
+      for (const [cod, p] of Object.entries(v2.estoque)) {
+        const { lote, validade, quantidade, ...resto } = p;
+        estoque[cod] = { ...resto, lotes: quantidade > 0 ? [{ lote: lote || "SEM-LOTE", validade, quantidade }] : [] };
+      }
+      historico = v2.historico || []; diasAviso = v2.diasAviso || 30;
+      salvar(); return;
+    }
   } catch (e) {}
   estoque = structuredClone(EXEMPLO); historico = []; diasAviso = 30;
 }
@@ -392,12 +415,24 @@ function salvar() { try { localStorage.setItem(KEY, JSON.stringify({ estoque, hi
 // ---------- Regras ----------
 function hojeISO() { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
 function diasAte(iso) { return Math.round((new Date(iso + "T00:00") - new Date(hojeISO() + "T00:00")) / 864e5); }
-const vencido = p => !!p.validade && p.validade < hojeISO();                       // RN-01
-const proximo = p => !vencido(p) && diasAte(p.validade) <= diasAviso;
-const baixo = p => p.quantidade <= p.estoque_minimo;                                 // RN-03
+const r3 = n => Math.round(n * 1000) / 1000;
+const soma = ls => r3(ls.reduce((s, l) => s + l.quantidade, 0));
+const porValidade = (a, b) => a.validade.localeCompare(b.validade);
+
+const loteVencido = l => l.validade < hojeISO();                                      // RN-01
+const loteProximo = l => !loteVencido(l) && diasAte(l.validade) <= diasAviso;
+const lotesAtivos = p => p.lotes.filter(l => l.quantidade > 0).sort(porValidade);
+const lotesValidos = p => lotesAtivos(p).filter(l => !loteVencido(l));
+const lotesVencidos = p => lotesAtivos(p).filter(loteVencido);
+const total = p => soma(lotesAtivos(p));                 // tudo o que está fisicamente no estoque
+const disponivel = p => soma(lotesValidos(p));           // o que pode ser usado (fora os vencidos)
+
+const vencido = p => lotesVencidos(p).length > 0;
+const proximo = p => lotesAtivos(p).some(loteProximo);
+const baixo = p => disponivel(p) <= p.estoque_minimo;                                   // RN-03
 function situacoes(p) { const s = []; if (vencido(p)) s.push("vencido"); if (proximo(p)) s.push("proximo"); if (baixo(p)) s.push("baixo"); return s.length ? s : ["regular"]; }
 const PILL = {
-  vencido: '<span class="pill red">Vencido</span>', proximo: '<span class="pill amber">Próximo do vencimento</span>',
+  vencido: '<span class="pill red">Lote vencido</span>', proximo: '<span class="pill amber">Próximo do vencimento</span>',
   baixo: '<span class="pill amber">Estoque baixo</span>', regular: '<span class="pill green">Regular</span>'
 };
 
@@ -407,21 +442,75 @@ function br(iso) { if (!iso) return "—"; const [a, m, d] = iso.split("-"); ret
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function numero(v) { if (v === "" || v == null) return null; const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) ? n : NaN; }
 function nome(cod, p) { return `${esc(cod)} · ${p.exemplo ? '<span class="tag-ex">EXEMPLO</span> · ' : ""}${esc(p.descricao)}`; }
+function agora() {
+  const d = new Date(), z = n => String(n).padStart(2, "0");
+  return { data: `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`, quando: d.toISOString() };
+}
+function registrar(cod, p, tipo, l, q) {
+  historico.push({ ...agora(), codigo: cod, descricao: p.descricao, tipo, quantidade: r3(q), lote: l.lote, validade: l.validade });
+}
 
-// Movimentação central (RF06, RF07, RN-01, RN-04, RF11) — devolve mensagem de erro ou null
-function movimentar(cod, tipo, q) {
+// Movimentação central (RF06, RF07, RN-01, RN-04, RF11) — devolve mensagem de erro ou null.
+// tipo: "entrada" | "saida" | "descarte"; lote: código do lote ("" na saída = automático, vence primeiro sai primeiro)
+function movimentar(cod, tipo, q, lote = "", validade = "") {
   const p = estoque[cod];
   if (!p) return "Produto não localizado no sistema.";
-  if (tipo === "saida" && vencido(p)) return `Movimentação bloqueada: produto vencido em ${br(p.validade)} não pode ser retirado (RN-01).`;
   if (q === null || Number.isNaN(q)) return "Digite uma quantidade válida.";
   if (q <= 0) return "A quantidade deve ser maior que zero.";
-  if (tipo === "saida" && q > p.quantidade) return `Quantidade insuficiente. Saldo disponível: ${fmt(p.quantidade)} (RN-04).`;
-  p.quantidade = Math.round((p.quantidade + (tipo === "entrada" ? q : -q)) * 1000) / 1000;
-  const d = new Date(), z = n => String(n).padStart(2, "0");
-  historico.push({ data: `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`,
-    codigo: cod, descricao: p.descricao, tipo: tipo.toUpperCase(), quantidade: q });
+  lote = String(lote || "").trim();
+
+  if (tipo === "entrada") {
+    if (!lote || !validade) return "Informe o lote e a data de validade da entrada (RN-05).";
+    if (validade < hojeISO()) return `Não é possível dar entrada em lote já vencido (${br(validade)}).`;
+    let l = p.lotes.find(x => x.lote === lote);
+    if (l && l.validade !== validade)
+      return `O lote ${lote} já está cadastrado com validade ${br(l.validade)}. Um lote tem uma única validade: confira o código do lote ou a data.`;
+    if (l) l.quantidade = r3(l.quantidade + q);
+    else p.lotes.push(l = { lote, validade, quantidade: r3(q) });
+    registrar(cod, p, "ENTRADA", l, q);
+    salvar(); renderTudo();
+    toast(`Entrada registrada no lote ${lote}. Disponível de ${cod}: ${fmt(disponivel(p))}.`);
+    return null;
+  }
+
+  if (tipo === "descarte") {
+    const l = lotesAtivos(p).find(x => x.lote === lote);
+    if (!l) return "Escolha o lote vencido que será descartado.";
+    if (!loteVencido(l)) return `O lote ${lote} ainda está dentro da validade. Use “Saída” para retirá-lo.`;
+    if (q > l.quantidade) return `O lote ${lote} tem só ${fmt(l.quantidade)} em estoque.`;
+    l.quantidade = r3(l.quantidade - q);
+    registrar(cod, p, "DESCARTE", l, q);
+    salvar(); renderTudo();
+    toast(`Descarte registrado: ${fmt(q)} do lote ${lote}.`);
+    return null;
+  }
+
+  // Saída de um lote escolhido
+  if (lote) {
+    const l = lotesAtivos(p).find(x => x.lote === lote);
+    if (!l) return `O lote ${lote} não tem saldo neste produto.`;
+    if (loteVencido(l)) return `Movimentação bloqueada: o lote ${lote} venceu em ${br(l.validade)} e não pode ser retirado para uso (RN-01).`;
+    if (q > l.quantidade) return `Quantidade insuficiente no lote ${lote}. Saldo do lote: ${fmt(l.quantidade)} (RN-04).`;
+    l.quantidade = r3(l.quantidade - q);
+    registrar(cod, p, "SAIDA", l, q);
+    salvar(); renderTudo();
+    toast(`Saída registrada do lote ${lote}. Disponível de ${cod}: ${fmt(disponivel(p))}.`);
+    return null;
+  }
+
+  // Saída automática: vence primeiro, sai primeiro (PVPS)
+  const disp = disponivel(p);
+  if (disp === 0 && vencido(p)) return "Movimentação bloqueada: este produto só tem lotes vencidos, que não podem ser retirados para uso (RN-01).";
+  if (q > disp) return `Quantidade insuficiente. Disponível nos lotes dentro da validade: ${fmt(disp)} (RN-04).`;
+  let resta = q; const usados = [];
+  for (const l of lotesValidos(p)) {
+    if (resta <= 0) break;
+    const tira = r3(Math.min(l.quantidade, resta));
+    l.quantidade = r3(l.quantidade - tira); resta = r3(resta - tira);
+    registrar(cod, p, "SAIDA", l, tira); usados.push(`${fmt(tira)} do lote ${l.lote}`);
+  }
   salvar(); renderTudo();
-  toast(`${tipo === "entrada" ? "Entrada" : "Saída"} registrada. Novo saldo de ${cod}: ${fmt(p.quantidade)}.`);
+  toast(`Saída registrada: ${usados.join(", ")}.`);
   return null;
 }
 
@@ -431,7 +520,7 @@ function kpisHTML() {
   const ps = Object.values(estoque);
   const k = [
     ["Produtos", ps.length, ""],
-    ["Quantidade total", fmt(ps.reduce((s, p) => s + p.quantidade, 0)), ""],
+    ["Quantidade total", fmt(soma(ps.flatMap(lotesAtivos))), ""],
     ["Estoque baixo", ps.filter(baixo).length, "amber"],
     ["Próximos do vencimento", ps.filter(proximo).length, "amber"],
     ["Vencidos", ps.filter(vencido).length, "red"]
@@ -445,10 +534,10 @@ function atencaoHTML(detalhe) {
     let det = "";
     if (detalhe) {
       const partes = [];
-      if (vencido(p)) partes.push(`venceu em ${br(p.validade)} — saída bloqueada`);
-      else if (proximo(p)) partes.push(`vence em ${br(p.validade)} (${diasAte(p.validade)} dias)`);
-      if (baixo(p)) partes.push(`saldo ${fmt(p.quantidade)}, mínimo ${fmt(p.estoque_minimo)}`);
-      det = `<span class="item-detail">Lote ${esc(p.lote)} · ${partes.join(" · ")}</span>`;
+      for (const l of lotesVencidos(p)) partes.push(`Lote ${esc(l.lote)} (${fmt(l.quantidade)}) venceu em ${br(l.validade)}: saída bloqueada, registre o descarte`);
+      for (const l of lotesAtivos(p).filter(loteProximo)) partes.push(`Lote ${esc(l.lote)} (${fmt(l.quantidade)}) vence em ${br(l.validade)} (${diasAte(l.validade)} dias)`);
+      if (baixo(p)) partes.push(`Disponível ${fmt(disponivel(p))}, mínimo ${fmt(p.estoque_minimo)}`);
+      det = partes.map(t => `<span class="item-detail">${t}</span>`).join("");
     }
     return `<li><span class="item-name">${nome(cod, p)}${det}</span><span class="pills">${situacoes(p).map(s => PILL[s]).join("")}</span></li>`;
   }).join("")}</ul>`;
@@ -459,34 +548,59 @@ function renderAlertas() {
   const n = Object.values(estoque).filter(p => vencido(p) || proximo(p) || baixo(p)).length;
   $("nav-badge").textContent = n; $("nav-badge").hidden = !n;
 }
+function lotesHTML(p) {
+  const ls = lotesAtivos(p);
+  if (!ls.length) return '<span class="hint">Sem lotes em estoque</span>';
+  return `<div class="lotes">${ls.map(l => `<span class="lote-linha ${loteVencido(l) ? "vencido" : loteProximo(l) ? "proximo" : ""}">${esc(l.lote)} · ${fmt(l.quantidade)} · ${br(l.validade)}</span>`).join("")}</div>`;
+}
 function renderProdutos() {
   const termo = $("busca").value.trim().toLowerCase(), filtro = $("filtro").value;
   const linhas = Object.entries(estoque).filter(([cod, p]) =>
-    (!termo || cod.toLowerCase().includes(termo) || p.descricao.toLowerCase().includes(termo)) && (!filtro || situacoes(p).includes(filtro)));
+    (!termo || cod.toLowerCase().includes(termo) || p.descricao.toLowerCase().includes(termo) || p.lotes.some(l => l.lote.toLowerCase().includes(termo)))
+    && (!filtro || situacoes(p).includes(filtro)));
   $("tbody").innerHTML = linhas.length ? linhas.map(([cod, p]) => `<tr>
     <td class="code">${esc(cod)}</td><td>${p.exemplo ? '<span class="tag-ex">EXEMPLO</span> · ' : ""}${esc(p.descricao)}</td>
-    <td class="num">${fmt(p.quantidade)}</td><td class="num">${fmt(p.estoque_minimo)}</td>
-    <td>${esc(p.lote)}</td><td>${br(p.validade)}</td>
+    <td class="num">${fmt(disponivel(p))}</td><td class="num">${fmt(p.estoque_minimo)}</td>
+    <td>${lotesHTML(p)}</td>
     <td><span class="pills">${situacoes(p).map(s => PILL[s]).join("")}</span></td>
     <td><div class="row-actions">
       <button class="btn sm" data-acao="entrada" data-cod="${esc(cod)}">+ Entrada</button>
-      <button class="btn sm" data-acao="saida" data-cod="${esc(cod)}" ${vencido(p) ? 'disabled title="Produto vencido: saída bloqueada (RN-01)"' : ""}>− Saída</button>
+      <button class="btn sm" data-acao="saida" data-cod="${esc(cod)}" ${disponivel(p) > 0 ? "" : 'disabled title="Sem saldo em lotes dentro da validade (RN-01 / RN-04)"'}>− Saída</button>
       <button class="btn sm" data-acao="editar" data-cod="${esc(cod)}">Editar</button>
-    </div></td></tr>`).join("") : `<tr><td colspan="8" class="empty">Nenhum produto encontrado.</td></tr>`;
+    </div></td></tr>`).join("") : `<tr><td colspan="7" class="empty">Nenhum produto encontrado.</td></tr>`;
 }
+const TIPO_PILL = { ENTRADA: '<span class="pill green">Entrada</span>', SAIDA: '<span class="pill amber">Saída</span>', DESCARTE: '<span class="pill red">Descarte</span>' };
 function renderMov() {
   const sel = $("m-produto"), atual = sel.value;
   sel.innerHTML = Object.entries(estoque).map(([cod, p]) => `<option value="${esc(cod)}">${esc(cod)} · ${esc(p.descricao)}</option>`).join("");
   if (estoque[atual]) sel.value = atual;
-  atualizaSaldo();
+  atualizaCamposMov();
   $("hbody").innerHTML = historico.length ? historico.slice().reverse().map(h => `<tr>
-    <td>${esc(h.data)}</td><td>${h.tipo === "ENTRADA" ? '<span class="pill green">Entrada</span>' : '<span class="pill amber">Saída</span>'}</td>
-    <td class="num">${fmt(h.quantidade)}</td><td class="code">${esc(h.codigo)}</td><td>${esc(h.descricao)}</td></tr>`).join("")
-    : `<tr><td colspan="5" class="empty">Nenhuma movimentação registrada ainda.</td></tr>`;
+    <td>${esc(h.data)}</td><td>${TIPO_PILL[h.tipo] || esc(h.tipo)}</td>
+    <td class="num">${fmt(h.quantidade)}</td><td class="code">${esc(h.codigo)}</td><td>${esc(h.descricao)}</td>
+    <td>${h.lote ? esc(h.lote) : "—"}</td><td>${br(h.validade)}</td></tr>`).join("")
+    : `<tr><td colspan="7" class="empty">Nenhuma movimentação registrada ainda.</td></tr>`;
 }
-function atualizaSaldo() {
-  const p = estoque[$("m-produto").value];
-  $("m-saldo").textContent = p ? `Saldo atual: ${fmt(p.quantidade)}${vencido(p) ? " · vencido, saída bloqueada" : ""}` : "";
+// Mostra os campos certos para cada tipo: entrada pede lote e validade; saída e descarte escolhem um lote existente
+const codMov = () => modoCamera() ? scanCod : $("m-produto").value;
+function atualizaCamposMov() {
+  const tipo = $("m-tipo").value, p = estoque[codMov()];
+  $("m-campos-entrada").hidden = tipo !== "entrada";
+  $("m-campos-saida").hidden = tipo === "entrada";
+  $("lbl-m-lote-saida").firstChild.textContent = tipo === "descarte" ? "Lote vencido a descartar" : "Lote";
+  const sel = $("m-lote-saida"), antes = sel.value;
+  if (!p) { sel.innerHTML = ""; $("m-lotes-lista").innerHTML = ""; $("m-saldo").textContent = ""; return; }
+  const opc = l => `<option value="${esc(l.lote)}">${esc(l.lote)} · ${fmt(l.quantidade)} · validade ${br(l.validade)}</option>`;
+  if (tipo === "descarte") {
+    const vs = lotesVencidos(p);
+    sel.innerHTML = vs.length ? vs.map(opc).join("") : '<option value="">Nenhum lote vencido neste produto</option>';
+  } else {
+    sel.innerHTML = '<option value="">Automático: vence primeiro, sai primeiro</option>' + lotesValidos(p).map(opc).join("");
+  }
+  if ([...sel.options].some(o => o.value === antes)) sel.value = antes;
+  $("m-lotes-lista").innerHTML = p.lotes.map(l => `<option value="${esc(l.lote)}">validade ${br(l.validade)}</option>`).join("");
+  const venc = soma(lotesVencidos(p));
+  $("m-saldo").textContent = `Disponível: ${fmt(disponivel(p))}` + (venc ? ` · ${fmt(venc)} em lotes vencidos (saída bloqueada)` : "");
 }
 function renderRelatorios() {
   const ps = Object.values(estoque);
@@ -494,24 +608,24 @@ function renderRelatorios() {
   const sai = historico.filter(h => h.tipo === "SAIDA").reduce((s, h) => s + h.quantidade, 0);
   $("rep-kpis").innerHTML = [
     ["Movimentações", historico.length, ""], ["Total de entradas", fmt(ent), ""], ["Total de saídas", fmt(sai), "amber"],
-    ["Itens a repor", ps.filter(baixo).length, "amber"], ["Itens vencidos", ps.filter(vencido).length, "red"]
+    ["Itens a repor", ps.filter(baixo).length, "amber"], ["Produtos com lote vencido", ps.filter(vencido).length, "red"]
   ].map(([l, v, c]) => `<div class="kpi ${c}"><span>${l}</span><strong>${v}</strong></div>`).join("");
-  const total = ps.length || 1;
+  const n = ps.length || 1;
   const grupos = [["Regular", ps.filter(p => situacoes(p)[0] === "regular").length, "var(--blue)"],
     ["Estoque baixo", ps.filter(baixo).length, "var(--amber)"], ["Próx. do vencimento", ps.filter(proximo).length, "var(--amber)"],
-    ["Vencidos", ps.filter(vencido).length, "var(--red)"]];
-  $("rep-bars").innerHTML = grupos.map(([l, n, c]) => `<div class="bar-row"><span>${l}</span>
-    <div class="bar-track"><div class="bar-fill" style="width:${n / total * 100}%;background:${c}"></div></div><b>${n}</b></div>`).join("");
+    ["Com lote vencido", ps.filter(vencido).length, "var(--red)"]];
+  $("rep-bars").innerHTML = grupos.map(([l, q, c]) => `<div class="bar-row"><span>${l}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${q / n * 100}%;background:${c}"></div></div><b>${q}</b></div>`).join("");
   const repor = Object.entries(estoque).filter(([, p]) => baixo(p));
   $("rep-repor").innerHTML = repor.length ? `<ul class="list">${repor.map(([cod, p]) =>
-    `<li><span class="item-name">${nome(cod, p)}<span class="item-detail">Saldo ${fmt(p.quantidade)} · mínimo ${fmt(p.estoque_minimo)}</span></span>
-     <span class="pill amber">Repor ao menos ${fmt(Math.round((p.estoque_minimo - p.quantidade + 1) * 100) / 100)}</span></li>`).join("")}</ul>`
+    `<li><span class="item-name">${nome(cod, p)}<span class="item-detail">Disponível ${fmt(disponivel(p))} · mínimo ${fmt(p.estoque_minimo)}</span></span>
+     <span class="pill amber">Repor ao menos ${fmt(r3(p.estoque_minimo - disponivel(p) + 1))}</span></li>`).join("")}</ul>`
     : `<p class="ok-line">Todos os itens estão acima do estoque mínimo.</p>`;
 }
 function renderTudo() { renderDashboard(); renderAlertas(); renderProdutos(); renderMov(); renderRelatorios(); $("cfg-dias").value = diasAviso; }
 
 let tt;
-function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => t.hidden = true, 3200); }
+function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => t.hidden = true, 3600); }
 function erro(el, m) { el.textContent = m || ""; el.hidden = !m; return false; }
 
 // ---------- Navegação ----------
@@ -532,14 +646,17 @@ $("filtro").addEventListener("change", renderProdutos);
 let editando = null;
 function abrirProduto(cod) {
   editando = cod || null;
-  const p = cod ? estoque[cod] : { descricao: "", lote: "", validade: "", quantidade: "", estoque_minimo: "" };
+  const p = cod ? estoque[cod] : { descricao: "", estoque_minimo: "" };
   $("p-titulo").textContent = cod ? `Editar produto ${cod}` : "Novo produto";
   $("p-ok").textContent = cod ? "Salvar alterações" : "Cadastrar";
   $("p-codigo").value = cod || ""; $("p-codigo").disabled = !!cod;
-  $("p-descricao").value = p.descricao; $("p-lote").value = p.lote; $("p-validade").value = p.validade;
-  $("p-quantidade").value = p.quantidade; $("p-minimo").value = p.estoque_minimo;
+  $("p-descricao").value = p.descricao; $("p-minimo").value = p.estoque_minimo;
+  $("p-lote").value = ""; $("p-validade").value = ""; $("p-quantidade").value = "";
   $("p-modo-avulso").checked = true; $("p-caixas").value = ""; $("p-por-caixa").value = p.unidades_por_caixa || "";
   atualizaModo();
+  document.querySelectorAll("#form-prod .so-novo").forEach(el => el.hidden = !!cod);
+  document.querySelectorAll("#form-prod .so-edicao").forEach(el => el.hidden = !cod);
+  if (cod) $("p-lotes-info").innerHTML = `<div class="lotes-info"><p>Lotes em estoque (para mudar quantidades, use Movimentações):</p>${lotesHTML(p)}</div>`;
   $("p-scan-btns").hidden = !!cod; $("p-scan-status").hidden = true;
   erro($("p-erro")); $("dlg-prod").showModal(); (cod ? $("p-descricao") : $("p-codigo")).focus();
 }
@@ -555,9 +672,9 @@ function atualizaModo() {
 function atualizaCalc() {
   const c = numero($("p-caixas").value), u = numero($("p-por-caixa").value);
   if (c > 0 && u > 0) {
-    const total = Math.round(c * u * 1000) / 1000;
-    $("p-quantidade").value = total;
-    $("p-calc").innerHTML = `${fmt(c)} ${c === 1 ? "caixa" : "caixas"} × ${fmt(u)} un. = <b>${fmt(total)} unidades</b>`;
+    const t = r3(c * u);
+    $("p-quantidade").value = t;
+    $("p-calc").innerHTML = `${fmt(c)} ${c === 1 ? "caixa" : "caixas"} × ${fmt(u)} un. = <b>${fmt(t)} unidades</b>`;
   } else {
     $("p-quantidade").value = "";
     $("p-calc").textContent = "Informe o número de caixas e as unidades por caixa para calcular o total.";
@@ -571,56 +688,72 @@ $("p-por-caixa").addEventListener("input", atualizaCalc);
 $("btn-novo").addEventListener("click", () => abrirProduto());
 $("form-prod").addEventListener("submit", e => {
   e.preventDefault();
-  const el = $("p-erro"), codigo = $("p-codigo").value.trim(), descricao = $("p-descricao").value.trim(),
-        lote = $("p-lote").value.trim(), validade = $("p-validade").value;
-  const qtd = numero($("p-quantidade").value), min = numero($("p-minimo").value);
+  const el = $("p-erro"), codigo = $("p-codigo").value.trim(), descricao = $("p-descricao").value.trim();
+  const min = numero($("p-minimo").value);
   if (!editando) {
     if (!codigo) return erro(el, "Informe o código do produto. Ele é obrigatório (RN-07).");
     if (estoque[codigo]) return erro(el, `Já existe um produto com o código ${codigo}.`);
   }
-  if (!descricao || !lote || !validade) return erro(el, "Preencha descrição, lote e validade. Todos são obrigatórios (RN-07).");
-  let porCaixa = (estoque[editando] || {}).unidades_por_caixa;
+  if (!descricao) return erro(el, "Preencha a descrição do material (RN-07).");
+  if (min === null || Number.isNaN(min)) return erro(el, "Informe o estoque mínimo como número.");
+  if (min < 0) return erro(el, "Quantidades não podem ser negativas (RN-07/RNF10).");
+
+  if (editando) {
+    Object.assign(estoque[editando], { descricao, estoque_minimo: min });
+    salvar(); renderTudo(); $("dlg-prod").close();
+    return toast("Produto atualizado.");
+  }
+
+  const lote = $("p-lote").value.trim(), validade = $("p-validade").value, qtd = numero($("p-quantidade").value);
+  if (!lote || !validade) return erro(el, "Preencha o lote e a validade do primeiro lote (RN-05/RN-07).");
+  if (validade < hojeISO()) return erro(el, `A validade informada (${br(validade)}) já passou. Não é possível cadastrar lote vencido.`);
+  let porCaixa;
   if (modoCaixas()) {
     const c = numero($("p-caixas").value), u = numero($("p-por-caixa").value);
     if (c === null || Number.isNaN(c) || !Number.isInteger(c) || c < 1) return erro(el, "Informe o número de caixas como um número inteiro a partir de 1.");
     if (u === null || Number.isNaN(u) || u <= 0) return erro(el, "Informe quantas unidades vêm em cada caixa (maior que zero).");
     porCaixa = u;
   }
-  if (qtd === null || min === null || Number.isNaN(qtd) || Number.isNaN(min)) return erro(el, "Quantidade e estoque mínimo devem ser números.");
-  if (qtd < 0 || min < 0) return erro(el, "Quantidades não podem ser negativas (RN-07/RNF10).");
-  const cod = editando || codigo;
-  estoque[cod] = { ...(estoque[cod] || {}), descricao, lote, validade, quantidade: qtd, estoque_minimo: min };
-  if (porCaixa) estoque[cod].unidades_por_caixa = porCaixa;
+  if (qtd === null || Number.isNaN(qtd)) return erro(el, "Informe a quantidade do primeiro lote.");
+  if (qtd < 0) return erro(el, "Quantidades não podem ser negativas (RN-07/RNF10).");
+
+  const p = estoque[codigo] = { descricao, estoque_minimo: min, lotes: [] };
+  if (porCaixa) p.unidades_por_caixa = porCaixa;
+  if (qtd > 0) { const l = { lote, validade, quantidade: r3(qtd) }; p.lotes.push(l); registrar(codigo, p, "ENTRADA", l, qtd); }
   salvar(); renderTudo(); $("dlg-prod").close();
-  toast(editando ? "Produto atualizado." : `Produto “${descricao}” cadastrado.`);
+  toast(`Produto “${descricao}” cadastrado com o lote ${lote}.`);
 });
+// Botões da tabela: Entrada e Saída abrem a tela de Movimentações já preenchida
 $("tbody").addEventListener("click", e => {
   const b = e.target.closest("button[data-acao]"); if (!b || b.disabled) return;
   const { acao, cod } = b.dataset;
   if (acao === "editar") return abrirProduto(cod);
-  movRapida = { cod, tipo: acao };
-  $("mv-titulo").textContent = acao === "entrada" ? "Registrar entrada" : "Registrar saída";
-  $("mv-sub").innerHTML = `${nome(cod, estoque[cod])} — saldo atual: <b>${fmt(estoque[cod].quantidade)}</b>`;
-  $("mv-qtd").value = ""; erro($("mv-erro")); $("dlg-mov").showModal(); $("mv-qtd").focus();
+  abrir("movimentacoes");
+  $("m-modo-manual").checked = true; atualizaModoMov();
+  $("m-produto").value = cod; $("m-tipo").value = acao;
+  $("m-qtd").value = ""; $("m-lote").value = ""; $("m-validade").value = "";
+  atualizaCamposMov();
+  (acao === "entrada" ? $("m-lote") : $("m-qtd")).focus();
 });
 
 // ---------- Movimentações ----------
-let movRapida = null;
-$("form-mov").addEventListener("submit", e => {
-  e.preventDefault();
-  const r = movimentar(movRapida.cod, movRapida.tipo, numero($("mv-qtd").value));
-  r ? erro($("mv-erro"), r) : $("dlg-mov").close();
+$("m-produto").addEventListener("change", atualizaCamposMov);
+$("m-tipo").addEventListener("change", () => { erro($("m-erro")); atualizaCamposMov(); });
+// Lote já existente: preenche a validade dele
+$("m-lote").addEventListener("input", () => {
+  const p = estoque[codMov()], l = p && p.lotes.find(x => x.lote === $("m-lote").value.trim());
+  if (l) $("m-validade").value = l.validade;
 });
-$("m-produto").addEventListener("change", atualizaSaldo);
 $("form-mov-page").addEventListener("submit", e => {
   e.preventDefault();
   const cam = modoCamera();
   if (cam && !scanCod) return erro($("m-erro"), "Leia o código do produto com a câmera ou digite o código antes de registrar.");
-  const cod = cam ? scanCod : $("m-produto").value;
-  const r = movimentar(cod, $("m-tipo").value, numero($("m-qtd").value));
+  const tipo = $("m-tipo").value;
+  const lote = tipo === "entrada" ? $("m-lote").value : $("m-lote-saida").value;
+  const r = movimentar(codMov(), tipo, numero($("m-qtd").value), lote, $("m-validade").value);
   if (r) return erro($("m-erro"), r);
-  erro($("m-erro")); $("m-qtd").value = "";
-  if (cam) { scanCod = null; status("info", "Movimentação registrada. Leia o próximo código."); }
+  erro($("m-erro")); $("m-qtd").value = ""; $("m-lote").value = ""; $("m-validade").value = "";
+  if (cam) { scanCod = null; atualizaCamposMov(); status("info", "Movimentação registrada. Leia o próximo código."); }
 });
 
 // ---------- Leitura por câmera (código de barras / QR code) ----------
@@ -649,8 +782,8 @@ function codigoLido(texto) {
     $("scan-cadastrar").addEventListener("click", () => { abrirProduto(); $("p-codigo").value = cod; $("p-descricao").focus(); });
     return;
   }
-  scanCod = cod; $("m-produto").value = cod; atualizaSaldo();
-  status("ok", `<span>Produto identificado: <b>${nome(cod, p)}</b> · saldo ${fmt(p.quantidade)}${vencido(p) ? " · <b>vencido, saída bloqueada</b>" : ""}</span>`);
+  scanCod = cod; $("m-produto").value = cod; atualizaCamposMov();
+  status("ok", `<span>Produto identificado: <b>${nome(cod, p)}</b> · disponível ${fmt(disponivel(p))}${vencido(p) ? " · <b>possui lote vencido</b>" : ""}</span>`);
   $("m-qtd").focus();
 }
 async function abrirCamera() {
@@ -672,6 +805,7 @@ function atualizaModoMov() {
   $("scan-area").hidden = !cam; $("lbl-m-produto").hidden = cam;
   erro($("m-erro"));
   if (!cam) { pararCamera(); scanCod = null; $("scan-status").hidden = true; }
+  atualizaCamposMov();
 }
 document.querySelectorAll('input[name="m-modo"]').forEach(r => r.addEventListener("change", atualizaModoMov));
 $("btn-cam").addEventListener("click", abrirCamera);
