@@ -7,12 +7,12 @@ on:
 
 jobs:
   testes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # Playwright 1.56 ainda não instala dependências no Ubuntu 26
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Instalar dependências
         run: npm ci
       - name: Instalar o navegador Chromium
