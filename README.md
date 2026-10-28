@@ -12,7 +12,15 @@ Sistema web de controle de estoque industrial, criado a partir da versão em Pyt
 - **Lotes:** cada produto pode ter vários lotes, cada um com sua validade e quantidade. A entrada registra o lote; se o lote já existe, a quantidade é somada a ele.
 - **Movimentações:** entradas, saídas e descarte de lotes vencidos, escolhendo o produto na lista ou lendo o código com a câmera. A saída tira primeiro do lote que vence antes (PVPS) ou de um lote escolhido. Inclui o histórico completo, com o lote de cada movimentação.
 - **Fornecedores:** cadastro, consulta e edição (nome, CNPJ validado, telefone, e-mail e endereço). Cada entrada registra o fornecedor e o custo unitário, e cada fornecedor tem seu histórico de fornecimento (produtos, lotes, quantidades, valores e datas).
-- **Alertas, Relatórios e Configurações:** alertas de validade e estoque mínimo, totais, reposição necessária e prazo do aviso de vencimento.
+- **Relatórios:** filtros por produto e período (30 dias, 90 dias, 6 meses, 12 meses, todo o histórico ou datas livres). Mostra consumo no período, consumo médio mensal, cobertura estimada em dias, valor comprado, gráfico de consumo mês a mês e o desempenho de cada produto. Também mostra a situação atual e a reposição necessária.
+- **Alertas e Configurações:** alertas de validade e estoque mínimo e prazo do aviso de vencimento.
+
+### Cálculos dos relatórios
+
+- **Consumo médio mensal** = saídas no período ÷ (dias do período ÷ 30,4375).
+- **Cobertura estimada** = disponível agora ÷ (saídas no período ÷ dias do período), em dias.
+- **Valor comprado** = soma de quantidade × custo unitário das entradas no período.
+- Descartes de lotes vencidos não contam como consumo.
 
 ## Regras de negócio
 

@@ -7,7 +7,7 @@
   --bg: #f1f4f5; --surface: #ffffff; --line: #e1e6ea; --line-soft: #edf0f2;
   --fg: #1f2d3d; --muted: #5d6b7a; --side: #000000; --side-fg: #ffffff; --side-muted: #c9d1d9; --side-active: #34495e;
   --blue: #2c5578; --amber: #d49b1f; --amber-bg: #fdf0c7; --amber-fg: #6e4d00;
-  --red: #c0393b; --red-bg: #fbe1df; --red-fg: #9c2427; --green-bg: #e2f2e7; --green-fg: #22663e;
+  --chart: #2a6db5; --red: #c0393b; --red-bg: #fbe1df; --red-fg: #9c2427; --green-bg: #e2f2e7; --green-fg: #22663e;
   --f-body: "DM Sans", "Segoe UI", system-ui, sans-serif;
   --f-serif: "Source Serif 4", Georgia, serif;
 }
@@ -15,12 +15,12 @@
   --bg: #11171c; --surface: #1a2229; --line: #2c3740; --line-soft: #242e36;
   --fg: #e5ebf0; --muted: #98a6b3; --side: #000000; --side-fg: #ffffff; --side-muted: #b3bdc7; --side-active: #34495e;
   --blue: #6c9cc4; --amber: #e0ad3a; --amber-bg: #3b2f12; --amber-fg: #f3cf7a;
-  --red: #e2605f; --red-bg: #3d1d1e; --red-fg: #ff9c98; --green-bg: #173123; --green-fg: #7fd6a1; color-scheme: dark } }
+  --chart: #5294e0; --red: #e2605f; --red-bg: #3d1d1e; --red-fg: #ff9c98; --green-bg: #173123; --green-fg: #7fd6a1; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #11171c; --surface: #1a2229; --line: #2c3740; --line-soft: #242e36;
   --fg: #e5ebf0; --muted: #98a6b3; --side: #000000; --side-fg: #ffffff; --side-muted: #b3bdc7; --side-active: #34495e;
   --blue: #6c9cc4; --amber: #e0ad3a; --amber-bg: #3b2f12; --amber-fg: #f3cf7a;
-  --red: #e2605f; --red-bg: #3d1d1e; --red-fg: #ff9c98; --green-bg: #173123; --green-fg: #7fd6a1; color-scheme: dark }
+  --chart: #5294e0; --red: #e2605f; --red-bg: #3d1d1e; --red-fg: #ff9c98; --green-bg: #173123; --green-fg: #7fd6a1; color-scheme: dark }
 
 * { box-sizing: border-box }
 [hidden] { display: none !important }
@@ -157,6 +157,22 @@ dialog.wide { width: min(900px, calc(100vw - 32px)) }
 .bar-fill { height: 100%; border-radius: 999px }
 .bar-row b { text-align: right; font-variant-numeric: tabular-nums }
 
+/* Filtros e gráfico dos relatórios */
+.filtros-linha { display: grid; grid-template-columns: 2fr 1.2fr 1fr 1fr; gap: 12px }
+.grafico-wrap { position: relative; margin-top: 12px }
+.grafico svg { display: block; width: 100%; height: auto; overflow: visible }
+.grafico .grade { stroke: var(--line-soft); stroke-width: 1 }
+.grafico .eixo { stroke: var(--line); stroke-width: 1 }
+.grafico .rotulo { fill: var(--muted); font: 500 12px var(--f-body); font-variant-numeric: tabular-nums }
+.grafico .coluna { fill: var(--chart) }
+.grafico .alvo { fill: transparent; cursor: default; outline: none }
+.grafico .alvo.ativo, .grafico .alvo:focus-visible { fill: color-mix(in srgb, var(--chart) 10%, transparent) }
+.grafico .media { stroke: var(--fg); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .7 }
+.grafico .rotulo-media { fill: var(--fg); font: 600 12px var(--f-body) }
+.tooltip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; box-shadow: 0 6px 18px rgb(0 0 0 / .15); display: grid; white-space: nowrap }
+.tooltip strong { font-size: 1rem; font-variant-numeric: tabular-nums }
+.tooltip span { color: var(--muted); font-size: .8rem }
+
 /* Diálogos */
 dialog { border: 1px solid var(--line); border-radius: 14px; padding: 0; background: var(--surface); color: var(--fg); width: min(540px, calc(100vw - 32px)) }
 dialog::backdrop { background: rgb(5 8 12 / .55) }
@@ -179,6 +195,8 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
   .main { padding-block: 24px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .grid, .grid.three, .grid.four { grid-template-columns: 1fr }
+  .filtros-linha { grid-template-columns: 1fr 1fr }
+  .filtros-linha .f-produto { grid-column: 1 / -1 }
   .bar-row { grid-template-columns: 110px minmax(0, 1fr) 44px }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
@@ -331,10 +349,38 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
 
     <!-- RELATÓRIOS -->
     <section id="view-relatorios" hidden>
-      <div class="kpis" id="rep-kpis"></div>
+      <div class="card filtros" style="margin-top:0">
+        <div class="filtros-linha">
+          <label class="f-produto">Produto<select id="r-produto"></select></label>
+          <label>Período<select id="r-periodo">
+            <option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option>
+            <option value="180" selected>Últimos 6 meses</option><option value="365">Últimos 12 meses</option>
+            <option value="tudo">Todo o histórico</option><option value="custom">Personalizado</option></select></label>
+          <label>De<input type="date" id="r-de"></label>
+          <label>Até<input type="date" id="r-ate"></label>
+        </div>
+        <p class="hint" id="r-resumo" style="margin:10px 0 0"></p>
+        <p class="err" id="r-erro" hidden></p>
+      </div>
+      <div class="kpis" id="rep-kpis" style="margin-top:16px"></div>
+      <div class="card">
+        <h2>Consumo mensal</h2>
+        <p class="sub" id="r-graf-sub"></p>
+        <div class="grafico-wrap"><div id="r-grafico" class="grafico"></div><div id="r-tooltip" class="tooltip" role="status" hidden></div></div>
+      </div>
+      <div class="card">
+        <h2>Desempenho por produto</h2>
+        <p class="sub">Movimentação no período. A cobertura estima em quantos dias o disponível acaba, no ritmo de consumo do período.</p>
+        <div class="table-box" style="margin-top:12px">
+          <table>
+            <thead><tr><th>Produto</th><th class="num">Entradas</th><th class="num">Saídas</th><th class="num">Descartes</th><th class="num">Consumo médio / mês</th><th class="num">Disponível</th><th class="num">Cobertura</th><th class="num">Valor comprado</th></tr></thead>
+            <tbody id="r-tbody"></tbody>
+          </table>
+        </div>
+      </div>
       <div class="card">
         <h2>Produtos por situação</h2>
-        <p class="sub">Distribuição dos itens cadastrados.</p>
+        <p class="sub">Situação atual dos itens cadastrados (não depende do período).</p>
         <div class="bars" id="rep-bars"></div>
       </div>
       <div class="card">
@@ -461,6 +507,27 @@ const FORN_EXEMPLO = {
   "F-EX1": { nome: "Aços Paulista Ltda.", cnpj: "11.222.333/0001-81", telefone: "(11) 4002-8922", email: "vendas@acospaulista.com.br", endereco: "Av. Industrial, 1500 – São Bernardo do Campo/SP", exemplo: true },
   "F-EX2": { nome: "Química Central S.A.", cnpj: "45.723.174/0001-10", telefone: "(19) 3232-4545", email: "comercial@quimicacentral.com.br", endereco: "Rod. Anhanguera, km 98 – Campinas/SP", exemplo: true }
 };
+// Histórico de exemplo dos últimos 6 meses (datas relativas a hoje), coerente com os saldos dos lotes
+const HIST_EXEMPLO = [
+  [175, "EX-CHA-01", "ENTRADA", 60, "L-2026A", "F-EX1", 85], [170, "EX-RES-03", "ENTRADA", 20, "L-99B", "F-EX2", 54],
+  [160, "EX-LUB-02", "ENTRADA", 30, "L-LB77", "F-EX2", 32.9], [150, "EX-CHA-01", "SAIDA", 10, "L-2026A"],
+  [140, "EX-RES-03", "SAIDA", 8, "L-99B"], [130, "EX-LUB-02", "SAIDA", 6, "L-LB77"], [115, "EX-CHA-01", "SAIDA", 10, "L-2026A"],
+  [100, "EX-LUB-02", "SAIDA", 7, "L-LB77"], [90, "EX-RES-03", "SAIDA", 8, "L-99B"], [80, "EX-CHA-01", "SAIDA", 8, "L-2026A"],
+  [60, "EX-LUB-02", "SAIDA", 5.5, "L-LB77"], [50, "EX-RES-03", "ENTRADA", 10, "L-120C", "F-EX2", 56],
+  [45, "EX-CHA-01", "ENTRADA", 15, "L-2026B", "F-EX1", 87.5], [25, "EX-LUB-02", "SAIDA", 3, "L-LB77"],
+  [20, "EX-CHA-01", "SAIDA", 7, "L-2026A"], [10, "EX-RES-03", "SAIDA", 2, "L-120C"]
+];
+function historicoExemplo() {
+  const z = n => String(n).padStart(2, "0");
+  return HIST_EXEMPLO.map(([diasAtras, codigo, tipo, quantidade, lote, fornecedor, custo]) => {
+    const d = new Date(); d.setDate(d.getDate() - diasAtras); d.setHours(9, 30, 0, 0);
+    const p = EXEMPLO[codigo], l = p.lotes.find(x => x.lote === lote);
+    const h = { data: `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()} 09:30:00`, quando: d.toISOString(),
+      codigo, descricao: p.descricao, tipo, quantidade, lote, validade: l.validade };
+    if (fornecedor) { h.fornecedor = fornecedor; h.custo = custo; }
+    return h;
+  });
+}
 const KEY = "estoque-senai-v3", KEY_ANTIGA = "estoque-senai-v2";
 let estoque, historico, diasAviso, fornecedores;
 
@@ -480,7 +547,7 @@ function carregar() {
       salvar(); return;
     }
   } catch (e) {}
-  estoque = structuredClone(EXEMPLO); historico = []; diasAviso = 30; fornecedores = structuredClone(FORN_EXEMPLO);
+  estoque = structuredClone(EXEMPLO); historico = historicoExemplo(); diasAviso = 30; fornecedores = structuredClone(FORN_EXEMPLO);
 }
 function salvar() { try { localStorage.setItem(KEY, JSON.stringify({ estoque, historico, diasAviso, fornecedores })); } catch (e) {} }
 
@@ -688,26 +755,6 @@ function atualizaCamposMov() {
   $("m-lotes-lista").innerHTML = p.lotes.map(l => `<option value="${esc(l.lote)}">validade ${br(l.validade)}</option>`).join("");
   const venc = soma(lotesVencidos(p));
   $("m-saldo").textContent = `Disponível: ${fmt(disponivel(p))}` + (venc ? ` · ${fmt(venc)} em lotes vencidos (saída bloqueada)` : "");
-}
-function renderRelatorios() {
-  const ps = Object.values(estoque);
-  const ent = historico.filter(h => h.tipo === "ENTRADA").reduce((s, h) => s + h.quantidade, 0);
-  const sai = historico.filter(h => h.tipo === "SAIDA").reduce((s, h) => s + h.quantidade, 0);
-  $("rep-kpis").innerHTML = [
-    ["Movimentações", historico.length, ""], ["Total de entradas", fmt(ent), ""], ["Total de saídas", fmt(sai), "amber"],
-    ["Itens a repor", ps.filter(baixo).length, "amber"], ["Produtos com lote vencido", ps.filter(vencido).length, "red"]
-  ].map(([l, v, c]) => `<div class="kpi ${c}"><span>${l}</span><strong>${v}</strong></div>`).join("");
-  const n = ps.length || 1;
-  const grupos = [["Regular", ps.filter(p => situacoes(p)[0] === "regular").length, "var(--blue)"],
-    ["Estoque baixo", ps.filter(baixo).length, "var(--amber)"], ["Próx. do vencimento", ps.filter(proximo).length, "var(--amber)"],
-    ["Com lote vencido", ps.filter(vencido).length, "var(--red)"]];
-  $("rep-bars").innerHTML = grupos.map(([l, q, c]) => `<div class="bar-row"><span>${l}</span>
-    <div class="bar-track"><div class="bar-fill" style="width:${q / n * 100}%;background:${c}"></div></div><b>${q}</b></div>`).join("");
-  const repor = Object.entries(estoque).filter(([, p]) => baixo(p));
-  $("rep-repor").innerHTML = repor.length ? `<ul class="list">${repor.map(([cod, p]) =>
-    `<li><span class="item-name">${nome(cod, p)}<span class="item-detail">Disponível ${fmt(disponivel(p))} · mínimo ${fmt(p.estoque_minimo)}</span></span>
-     <span class="pill amber">Repor ao menos ${fmt(r3(p.estoque_minimo - disponivel(p) + 1))}</span></li>`).join("")}</ul>`
-    : `<p class="ok-line">Todos os itens estão acima do estoque mínimo.</p>`;
 }
 function renderTudo() { preencherSelectsForn(); renderDashboard(); renderAlertas(); renderProdutos(); renderMov(); renderFornecedores(); renderRelatorios(); $("cfg-dias").value = diasAviso; }
 
@@ -1066,6 +1113,169 @@ $("fbody").addEventListener("click", e => {
   b.dataset.fornAcao === "editar" ? abrirFornecedor(b.dataset.id) : abrirHistoricoForn(b.dataset.id);
 });
 
+// ---------- Relatórios ----------
+// Data (AAAA-MM-DD) de uma movimentação; entradas antigas sem "quando" usam o texto dd/mm/aaaa
+function diaDe(h) {
+  if (h.quando) { const d = new Date(h.quando); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+  const [d, m, a] = h.data.slice(0, 10).split("/"); return `${a}-${m}-${d}`;
+}
+function somaDias(iso, n) { const d = new Date(iso + "T12:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+function diasEntre(de, ate) { return Math.round((new Date(ate + "T12:00") - new Date(de + "T12:00")) / 864e5) + 1; }
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const DIAS_MES = 30.4375;
+
+function aplicarPeriodo() {
+  const v = $("r-periodo").value, hoje = hojeISO();
+  if (v === "custom") return;
+  if (v === "tudo") {
+    const dias = historico.map(diaDe).sort();
+    $("r-de").value = dias[0] && dias[0] < hoje ? dias[0] : hoje;
+  } else $("r-de").value = somaDias(hoje, -(Number(v) - 1));
+  $("r-ate").value = hoje;
+}
+function preencherFiltroProduto() {
+  const sel = $("r-produto"), antes = sel.value;
+  sel.innerHTML = '<option value="">Todos os produtos</option>' +
+    Object.entries(estoque).map(([cod, p]) => `<option value="${esc(cod)}">${esc(cod)} · ${esc(p.descricao)}</option>`).join("");
+  if (estoque[antes]) sel.value = antes;
+}
+// Números de um produto (ou de todos) no período
+function medidas(hs, dias, p) {
+  const somaTipo = t => r3(hs.filter(h => h.tipo === t).reduce((s, h) => s + h.quantidade, 0));
+  const saidas = somaTipo("SAIDA");
+  const consumoMes = saidas / (dias / DIAS_MES);
+  const m = { entradas: somaTipo("ENTRADA"), saidas, descartes: somaTipo("DESCARTE"), consumoMes,
+    valor: hs.filter(h => h.tipo === "ENTRADA").reduce((s, h) => s + valorEntrega(h), 0), movs: hs.length };
+  if (p) {
+    m.disponivel = disponivel(p);
+    m.cobertura = saidas > 0 ? Math.floor(m.disponivel / (saidas / dias)) : null; // dias até acabar, no ritmo do período
+  }
+  return m;
+}
+const textoCobertura = m => m.cobertura == null ? "Sem consumo" : `${fmt(m.cobertura)} ${m.cobertura === 1 ? "dia" : "dias"}`;
+
+function renderRelatorios() {
+  preencherFiltroProduto();
+  if (!$("r-de").value || !$("r-ate").value) aplicarPeriodo();
+  let de = $("r-de").value, ate = $("r-ate").value;
+  const erroEl = $("r-erro");
+  if (de > ate) { erro(erroEl, "A data inicial é depois da data final. Ajuste o período."); return; }
+  erro(erroEl);
+  const dias = diasEntre(de, ate), cod = $("r-produto").value, p = estoque[cod];
+  const noPeriodo = historico.filter(h => { const d = diaDe(h); return d >= de && d <= ate; });
+  const hs = cod ? noPeriodo.filter(h => h.codigo === cod) : noPeriodo;
+  $("r-resumo").textContent = `Período: ${br(de)} a ${br(ate)} (${dias} ${dias === 1 ? "dia" : "dias"}) · ${hs.length} movimentações`;
+
+  const m = medidas(hs, dias, p);
+  const kpis = p ? [
+    ["Consumo no período", fmt(m.saidas), ""], ["Consumo médio mensal", fmt(m.consumoMes), ""],
+    ["Disponível agora", fmt(m.disponivel), baixo(p) ? "amber" : ""], ["Cobertura estimada", textoCobertura(m), m.cobertura != null && m.cobertura < 30 ? "amber" : ""],
+    ["Valor comprado", dinheiro(m.valor), ""]
+  ] : [
+    ["Movimentações", m.movs, ""], ["Produtos movimentados", new Set(hs.map(h => h.codigo)).size, ""],
+    ["Valor comprado", dinheiro(m.valor), ""], ["Itens a repor", Object.values(estoque).filter(baixo).length, "amber"],
+    ["Produtos com lote vencido", Object.values(estoque).filter(vencido).length, "red"]
+  ];
+  $("rep-kpis").innerHTML = kpis.map(([l, v, c]) => `<div class="kpi ${c}"><span>${l}</span><strong>${v}</strong></div>`).join("");
+
+  renderGrafico(p ? { cod, p, hs, de, ate, media: m.consumoMes } : null);
+
+  // Desempenho por produto
+  const linhas = Object.entries(estoque).filter(([c]) => !cod || c === cod).map(([c, prod]) => {
+    const mm = medidas(noPeriodo.filter(h => h.codigo === c), dias, prod);
+    return { c, prod, mm };
+  }).sort((a, b) => b.mm.saidas - a.mm.saidas);
+  $("r-tbody").innerHTML = linhas.map(({ c, prod, mm }) => `<tr>
+    <td><span class="item-name">${nome(c, prod)}</span></td>
+    <td class="num">${fmt(mm.entradas)}</td><td class="num">${fmt(mm.saidas)}</td><td class="num">${fmt(mm.descartes)}</td>
+    <td class="num">${fmt(mm.consumoMes)}</td><td class="num">${fmt(mm.disponivel)}</td>
+    <td class="num">${textoCobertura(mm)}</td><td class="num">${dinheiro(mm.valor)}</td></tr>`).join("")
+    || `<tr><td colspan="8" class="empty">Nenhum produto cadastrado.</td></tr>`;
+
+  // Situação atual (não depende do período)
+  const ps = Object.values(estoque), n = ps.length || 1;
+  const grupos = [["Regular", ps.filter(x => situacoes(x)[0] === "regular").length, "var(--blue)"],
+    ["Estoque baixo", ps.filter(baixo).length, "var(--amber)"], ["Próx. do vencimento", ps.filter(proximo).length, "var(--amber)"],
+    ["Com lote vencido", ps.filter(vencido).length, "var(--red)"]];
+  $("rep-bars").innerHTML = grupos.map(([l, q, c]) => `<div class="bar-row"><span>${l}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${q / n * 100}%;background:${c}"></div></div><b>${q}</b></div>`).join("");
+  const repor = Object.entries(estoque).filter(([, x]) => baixo(x));
+  $("rep-repor").innerHTML = repor.length ? `<ul class="list">${repor.map(([c, x]) =>
+    `<li><span class="item-name">${nome(c, x)}<span class="item-detail">Disponível ${fmt(disponivel(x))} · mínimo ${fmt(x.estoque_minimo)}</span></span>
+     <span class="pill amber">Repor ao menos ${fmt(r3(x.estoque_minimo - disponivel(x) + 1))}</span></li>`).join("")}</ul>`
+    : `<p class="ok-line">Todos os itens estão acima do estoque mínimo.</p>`;
+}
+
+// Gráfico de colunas: consumo (saídas) por mês do produto escolhido, com linha da média mensal
+function renderGrafico(dados) {
+  const box = $("r-grafico");
+  if (!dados) {
+    $("r-graf-sub").textContent = "Escolha um produto no filtro acima para ver o consumo mês a mês.";
+    box.innerHTML = ""; return;
+  }
+  const { cod, p, hs, de, ate, media } = dados;
+  // Um ponto por mês do período
+  const meses = [];
+  for (let d = new Date(de.slice(0, 7) + "-01T12:00"); d.toISOString().slice(0, 7) <= ate.slice(0, 7); d.setMonth(d.getMonth() + 1)) {
+    const chave = d.toISOString().slice(0, 7);
+    meses.push({ chave, rotulo: `${MESES[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`, valor: 0 });
+  }
+  for (const h of hs) if (h.tipo === "SAIDA") { const m = meses.find(x => x.chave === diaDe(h).slice(0, 7)); if (m) m.valor = r3(m.valor + h.quantidade); }
+  $("r-graf-sub").textContent = `${cod} · ${p.descricao}. A linha tracejada é a média mensal do período (${fmt(media)}).`;
+
+  const W = 720, H = 240, M = { t: 16, r: 16, b: 32, l: 44 };
+  const iw = W - M.l - M.r, ih = H - M.t - M.b;
+  const max = Math.max(media, ...meses.map(m => m.valor), 1);
+  const passo = (() => { const bruto = max / 4, ordem = 10 ** Math.floor(Math.log10(bruto)); return [1, 2, 2.5, 5, 10].map(f => f * ordem).find(s => s >= bruto); })();
+  const topo = Math.ceil(max / passo) * passo;
+  const y = v => M.t + ih - (v / topo) * ih;
+  const banda = iw / meses.length, larg = Math.min(48, banda - 2), raio = Math.min(4, larg / 2);
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", `Consumo mensal de ${p.descricao}`);
+  const el = (tag, at, pai = svg) => { const e = document.createElementNS(ns, tag); for (const k in at) e.setAttribute(k, at[k]); pai.appendChild(e); return e; };
+  for (let v = 0; v <= topo + 1e-9; v += passo) {
+    el("line", { x1: M.l, x2: W - M.r, y1: y(v), y2: y(v), class: v === 0 ? "eixo" : "grade" });
+    el("text", { x: M.l - 8, y: y(v) + 4, "text-anchor": "end", class: "rotulo" }).textContent = fmt(v);
+  }
+  const tip = $("r-tooltip");
+  meses.forEach((m, i) => {
+    const x = M.l + i * banda + (banda - larg) / 2, h = (m.valor / topo) * ih, yb = M.t + ih;
+    // Coluna com cantos arredondados só no topo
+    if (h > 0) {
+      const r = Math.min(raio, h);
+      el("path", { class: "coluna", d: `M${x},${yb} V${yb - h + r} Q${x},${yb - h} ${x + r},${yb - h} H${x + larg - r} Q${x + larg},${yb - h} ${x + larg},${yb - h + r} V${yb} Z` });
+    }
+    el("text", { x: x + larg / 2, y: H - 10, "text-anchor": "middle", class: "rotulo" }).textContent = m.rotulo;
+    // Área de toque maior que a coluna, com dica ao passar o mouse ou focar pelo teclado
+    const alvo = el("rect", { x: M.l + i * banda, y: M.t, width: banda, height: ih, class: "alvo", tabindex: 0 });
+    alvo.setAttribute("aria-label", `${m.rotulo}: ${fmt(m.valor)}`);
+    const mostrar = () => {
+      tip.replaceChildren();
+      const v = document.createElement("strong"); v.textContent = fmt(m.valor);
+      const t = document.createElement("span"); t.textContent = `consumo em ${m.rotulo}`;
+      tip.append(v, t); tip.hidden = false;
+      const bx = box.getBoundingClientRect(), sx = bx.width / W;
+      tip.style.left = Math.min(Math.max((x + larg / 2) * sx - tip.offsetWidth / 2, 0), bx.width - tip.offsetWidth) + "px";
+      tip.style.top = Math.max(y(m.valor) * sx - tip.offsetHeight - 8, 0) + "px";
+      alvo.classList.add("ativo");
+    };
+    const esconder = () => { tip.hidden = true; alvo.classList.remove("ativo"); };
+    alvo.addEventListener("pointerenter", mostrar); alvo.addEventListener("focus", mostrar);
+    alvo.addEventListener("pointerleave", esconder); alvo.addEventListener("blur", esconder);
+  });
+  if (media > 0) {
+    el("line", { x1: M.l, x2: W - M.r, y1: y(media), y2: y(media), class: "media" });
+    el("text", { x: W - M.r, y: y(media) - 6, "text-anchor": "end", class: "rotulo-media" }).textContent = `média ${fmt(media)}`;
+  }
+  box.replaceChildren(svg);
+}
+
+$("r-produto").addEventListener("change", renderRelatorios);
+$("r-periodo").addEventListener("change", () => { aplicarPeriodo(); renderRelatorios(); });
+for (const id of ["r-de", "r-ate"]) $(id).addEventListener("change", () => { $("r-periodo").value = "custom"; renderRelatorios(); });
+
 // ---------- Configurações ----------
 $("form-cfg").addEventListener("submit", e => {
   e.preventDefault();
@@ -1076,7 +1286,7 @@ $("form-cfg").addEventListener("submit", e => {
 $("reset-area").addEventListener("click", e => {
   const a = $("reset-area"), padrao = `<button class="btn danger" type="button" id="btn-reset">Restaurar dados de exemplo</button>`;
   if (e.target.id === "btn-reset") a.innerHTML = `<span>Apagar todos os produtos, fornecedores e o histórico?</span><button class="btn danger" type="button" id="reset-sim">Sim, restaurar</button><button class="btn" type="button" id="reset-nao">Cancelar</button>`;
-  else if (e.target.id === "reset-sim") { estoque = structuredClone(EXEMPLO); historico = []; diasAviso = 30; fornecedores = structuredClone(FORN_EXEMPLO); salvar(); renderTudo(); a.innerHTML = padrao; toast("Dados de exemplo restaurados."); }
+  else if (e.target.id === "reset-sim") { estoque = structuredClone(EXEMPLO); historico = historicoExemplo(); diasAviso = 30; fornecedores = structuredClone(FORN_EXEMPLO); salvar(); renderTudo(); a.innerHTML = padrao; toast("Dados de exemplo restaurados."); }
   else if (e.target.id === "reset-nao") a.innerHTML = padrao;
 });
 

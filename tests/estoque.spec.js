@@ -18,6 +18,8 @@ test.beforeEach(async ({ page }) => {
 //   EX-CHA-01  lotes L-2026A (25, 30/12/2027) e L-2026B (15, 30/06/2028)  mínimo 10
 //   EX-LUB-02  lote  L-LB77  (8,5, 10/11/2026 — próximo do vencimento)     mínimo 10 → estoque baixo
 //   EX-RES-03  lotes L-99B   (4, 15/10/2026 — vencido) e L-120C (8, 01/03/2027)  mínimo 5
+// O histórico de exemplo tem 16 movimentações nos últimos 6 meses (ver HIST_EXEMPLO no index.html).
+const HIST_INICIAL = 16;
 
 const kpi = (page, nome) => page.locator("#kpis .kpi", { hasText: nome }).locator("strong");
 const menu = (page, nome) => page.click(`.nav button[data-view="${nome}"]`);
@@ -132,7 +134,7 @@ test.describe("Saídas e descarte (RN-01, RN-04)", () => {
     await movimentar(page, { cod: "EX-CHA-01", tipo: "saida", qtd: 30 });
     await expect(page.locator("#m-erro")).toBeHidden();
     // 25 do L-2026A (vence antes) + 5 do L-2026B
-    await expect(page.locator("#hbody tr")).toHaveCount(2);
+    await expect(page.locator("#hbody tr")).toHaveCount(HIST_INICIAL + 2);
     await expect(page.locator("#hbody tr").nth(1)).toContainText("L-2026A");
     await expect(page.locator("#hbody tr").nth(1)).toContainText("25");
     await expect(page.locator("#hbody tr").nth(0)).toContainText("L-2026B");
@@ -258,7 +260,7 @@ test.describe("Dados salvos no navegador", () => {
     await movimentar(page, { cod: "EX-CHA-01", tipo: "saida", qtd: 2 });
     await page.reload();
     await menu(page, "movimentacoes");
-    await expect(page.locator("#hbody tr")).toHaveCount(1);
+    await expect(page.locator("#hbody tr")).toHaveCount(HIST_INICIAL + 1);
   });
 
   test("converte os dados da versão anterior (um lote por produto)", async ({ page }) => {
@@ -392,17 +394,18 @@ test.describe("Fornecedores", () => {
 
     await menu(page, "fornecedores");
     const l = linhaForn(page, "Aços Paulista");
-    await expect(l.locator("td").nth(3)).toHaveText("1");
-    await expect(l.locator("td").nth(4)).toHaveText(/R\$\s?100,00/);
+    // Exemplo: 2 entregas (60 × R$ 85,00 + 15 × R$ 87,50 = R$ 6.412,50); mais esta de R$ 100,00
+    await expect(l.locator("td").nth(3)).toHaveText("3");
+    await expect(l.locator("td").nth(4)).toHaveText(/R\$\s?6\.512,50/);
     await l.locator('button[data-forn-acao="historico"]').click();
-    await expect(page.locator("#fh-body tr")).toHaveCount(1);
-    await expect(page.locator("#fh-body tr")).toContainText("L-2027X");
-    await expect(page.locator("#fh-body tr")).toContainText(/R\$\s?100,00/);
+    await expect(page.locator("#fh-body tr")).toHaveCount(3);
+    await expect(page.locator("#fh-body tr").first()).toContainText("L-2027X");
+    await expect(page.locator("#fh-body tr").first()).toContainText(/R\$\s?100,00/);
   });
 
   test("fornecedor sem entregas mostra histórico vazio", async ({ page }) => {
-    await menu(page, "fornecedores");
-    await linhaForn(page, "Química Central").locator('button[data-forn-acao="historico"]').click();
+    await novoFornecedor(page, { nome: "Ferragens Sul", cnpj: "11444777000161" });
+    await linhaForn(page, "Ferragens Sul").locator('button[data-forn-acao="historico"]').click();
     await expect(page.locator("#fh-body")).toContainText("Nenhuma entrega registrada");
   });
 
@@ -438,6 +441,77 @@ test.describe("Fornecedores", () => {
     await page.fill("#p-custo", "12.5");
     await page.click("#p-ok");
     await menu(page, "fornecedores");
-    await expect(linhaForn(page, "Química Central").locator("td").nth(4)).toHaveText(/R\$\s?125,00/);
+    await linhaForn(page, "Química Central").locator('button[data-forn-acao="historico"]').click();
+    const entrega = page.locator("#fh-body tr", { hasText: "Q-01" });
+    await expect(entrega).toContainText("S-1");
+    await expect(entrega.locator("td").last()).toHaveText(/R\$\s?125,00/);
+  });
+});
+
+test.describe("Relatórios com filtros", () => {
+  // Em 23/10/2026, "últimos 6 meses" = 180 dias: de 27/04/2026 a 23/10/2026
+  const kpiRel = (page, nome) => page.locator("#rep-kpis .kpi", { hasText: nome }).locator("strong");
+  const linhaRel = (page, cod) => page.locator("#r-tbody tr", { hasText: cod });
+
+  test("abre nos últimos 6 meses com todos os produtos", async ({ page }) => {
+    await menu(page, "relatorios");
+    await expect(page.locator("#r-resumo")).toContainText("27/04/2026 a 23/10/2026 (180 dias)");
+    await expect(page.locator("#r-tbody tr")).toHaveCount(3);
+    // Ordenado por consumo: chapa (35), lubrificante (21,5), resina (18)
+    await expect(page.locator("#r-tbody tr").first()).toContainText("EX-CHA-01");
+    await expect(linhaRel(page, "EX-LUB-02").locator("td").nth(2)).toHaveText("21,5");
+    await expect(page.locator("#r-graf-sub")).toContainText("Escolha um produto");
+  });
+
+  test("filtro por produto mostra consumo médio mensal e cobertura", async ({ page }) => {
+    await menu(page, "relatorios");
+    await page.selectOption("#r-produto", "EX-LUB-02");
+    await expect(kpiRel(page, "Consumo no período")).toHaveText("21,5");
+    // 21,5 em 180 dias = 21,5 ÷ (180 ÷ 30,4375) = 3,64 por mês
+    await expect(kpiRel(page, "Consumo médio mensal")).toHaveText("3,64");
+    await expect(kpiRel(page, "Disponível agora")).toHaveText("8,5");
+    // 8,5 ÷ (21,5 ÷ 180 por dia) = 71 dias
+    await expect(kpiRel(page, "Cobertura estimada")).toHaveText("71 dias");
+    await expect(kpiRel(page, "Valor comprado")).toHaveText(/R\$\s?987,00/);
+    await expect(page.locator("#r-tbody tr")).toHaveCount(1);
+  });
+
+  test("gráfico tem uma coluna por mês e mostra o valor ao passar o mouse", async ({ page }) => {
+    await menu(page, "relatorios");
+    await page.selectOption("#r-produto", "EX-CHA-01");
+    // abr/26 a out/26 = 7 meses
+    await expect(page.locator("#r-grafico .alvo")).toHaveCount(7);
+    await expect(page.locator("#r-grafico .media")).toHaveCount(1);
+    await page.locator("#r-grafico .alvo").nth(2).hover();       // jun/26: saída de 10 (115 dias atrás = 30/06)
+    await expect(page.locator("#r-tooltip")).toBeVisible();
+    await expect(page.locator("#r-tooltip strong")).toHaveText("10");
+    await expect(page.locator("#r-tooltip")).toContainText("jun/26");
+    await page.locator("#r-grafico .alvo").nth(3).hover();       // jul/26: sem consumo
+    await expect(page.locator("#r-tooltip strong")).toHaveText("0");
+  });
+
+  test("período de 30 dias considera só as movimentações recentes", async ({ page }) => {
+    await menu(page, "relatorios");
+    await page.selectOption("#r-periodo", "30");
+    await page.selectOption("#r-produto", "EX-LUB-02");
+    await expect(kpiRel(page, "Consumo no período")).toHaveText("3");
+    await expect(kpiRel(page, "Consumo médio mensal")).toHaveText("3,04");
+  });
+
+  test("período personalizado e aviso de datas invertidas", async ({ page }) => {
+    await menu(page, "relatorios");
+    await page.fill("#r-de", "2026-05-01");
+    await page.fill("#r-ate", "2026-05-31");
+    await expect(page.locator("#r-periodo")).toHaveValue("custom");
+    await expect(page.locator("#r-resumo")).toContainText("01/05/2026 a 31/05/2026 (31 dias)");
+    await page.fill("#r-de", "2026-06-10");
+    await expect(page.locator("#r-erro")).toContainText("data inicial é depois da data final");
+  });
+
+  test("uma nova saída entra no relatório", async ({ page }) => {
+    await movimentar(page, { cod: "EX-CHA-01", tipo: "saida", qtd: 5 });
+    await menu(page, "relatorios");
+    await page.selectOption("#r-produto", "EX-CHA-01");
+    await expect(kpiRel(page, "Consumo no período")).toHaveText("40");
   });
 });
