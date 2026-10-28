@@ -316,3 +316,128 @@ test.describe("Leitura de código de barras e QR code", () => {
     await expect(page.locator("#leitor-prod")).toBeHidden(); // a câmera fecha sozinha após a leitura
   });
 });
+
+test.describe("Fornecedores", () => {
+  const linhaForn = (page, texto) => page.locator("#fbody tr", { hasText: texto });
+
+  async function novoFornecedor(page, f) {
+    await menu(page, "fornecedores");
+    await page.click("#btn-novo-forn");
+    for (const k of ["nome", "cnpj", "telefone", "email", "endereco"]) if (f[k] !== undefined) await page.fill("#f-" + k, f[k]);
+    await page.click("#f-ok");
+  }
+
+  test("lista os fornecedores de exemplo", async ({ page }) => {
+    await menu(page, "fornecedores");
+    await expect(page.locator("#fbody tr")).toHaveCount(2);
+    await expect(linhaForn(page, "Aços Paulista")).toContainText("11.222.333/0001-81");
+  });
+
+  test("cadastra fornecedor e formata o CNPJ", async ({ page }) => {
+    await novoFornecedor(page, { nome: "Ferragens Sul", cnpj: "11444777000161", telefone: "(51) 3333-0000", email: "contato@ferragenssul.com.br", endereco: "Rua A, 10 – Porto Alegre/RS" });
+    await expect(page.locator("#dlg-forn")).not.toBeVisible();
+    await expect(linhaForn(page, "Ferragens Sul")).toContainText("11.444.777/0001-61");
+    await expect(linhaForn(page, "Ferragens Sul")).toContainText("contato@ferragenssul.com.br");
+  });
+
+  test("exige o nome", async ({ page }) => {
+    await novoFornecedor(page, { cnpj: "11444777000161" });
+    await expect(page.locator("#f-erro")).toContainText("nome");
+  });
+
+  test("recusa CNPJ inválido", async ({ page }) => {
+    await novoFornecedor(page, { nome: "Teste", cnpj: "11.222.333/0001-82" });
+    await expect(page.locator("#f-erro")).toContainText("CNPJ inválido");
+  });
+
+  test("recusa CNPJ já cadastrado", async ({ page }) => {
+    await novoFornecedor(page, { nome: "Outro", cnpj: "11222333000181" });
+    await expect(page.locator("#f-erro")).toContainText("já está cadastrado para Aços Paulista");
+  });
+
+  test("recusa e-mail inválido", async ({ page }) => {
+    await novoFornecedor(page, { nome: "Teste", cnpj: "11444777000161", email: "contato@semponto" });
+    await expect(page.locator("#f-erro")).toContainText("E-mail inválido");
+  });
+
+  test("edita os dados do fornecedor", async ({ page }) => {
+    await menu(page, "fornecedores");
+    await linhaForn(page, "Química Central").locator('button[data-forn-acao="editar"]').click();
+    await expect(page.locator("#f-cnpj")).toHaveValue("45.723.174/0001-10");
+    await page.fill("#f-telefone", "(19) 9999-1111");
+    await page.click("#f-ok");
+    await expect(linhaForn(page, "Química Central")).toContainText("(19) 9999-1111");
+  });
+
+  test("pesquisa por parte do CNPJ", async ({ page }) => {
+    await menu(page, "fornecedores");
+    await page.fill("#busca-forn", "45723");
+    await expect(page.locator("#fbody tr")).toHaveCount(1);
+    await expect(page.locator("#fbody tr")).toContainText("Química Central");
+  });
+
+  test("entrada com fornecedor e custo entra no histórico de fornecimento", async ({ page }) => {
+    await menu(page, "movimentacoes");
+    await page.selectOption("#m-produto", "EX-CHA-01");
+    await page.selectOption("#m-tipo", "entrada");
+    await page.fill("#m-lote", "L-2027X");
+    await page.fill("#m-validade", "2029-01-01");
+    await page.selectOption("#m-fornecedor", { label: "Aços Paulista Ltda." });
+    await page.fill("#m-custo", "5");
+    await page.fill("#m-qtd", "20");
+    await page.click("#form-mov-page button[type=submit]");
+    await expect(page.locator("#m-erro")).toBeHidden();
+    await expect(page.locator("#hbody tr").first()).toContainText("Aços Paulista Ltda.");
+    await expect(page.locator("#hbody tr").first()).toContainText(/R\$\s?5,00/);
+
+    await menu(page, "fornecedores");
+    const l = linhaForn(page, "Aços Paulista");
+    await expect(l.locator("td").nth(3)).toHaveText("1");
+    await expect(l.locator("td").nth(4)).toHaveText(/R\$\s?100,00/);
+    await l.locator('button[data-forn-acao="historico"]').click();
+    await expect(page.locator("#fh-body tr")).toHaveCount(1);
+    await expect(page.locator("#fh-body tr")).toContainText("L-2027X");
+    await expect(page.locator("#fh-body tr")).toContainText(/R\$\s?100,00/);
+  });
+
+  test("fornecedor sem entregas mostra histórico vazio", async ({ page }) => {
+    await menu(page, "fornecedores");
+    await linhaForn(page, "Química Central").locator('button[data-forn-acao="historico"]').click();
+    await expect(page.locator("#fh-body")).toContainText("Nenhuma entrega registrada");
+  });
+
+  test("“+ Novo fornecedor” na entrada já seleciona o fornecedor criado", async ({ page }) => {
+    await menu(page, "movimentacoes");
+    await page.click("#m-novo-forn");
+    await page.fill("#f-nome", "Ferragens Sul");
+    await page.fill("#f-cnpj", "11444777000161");
+    await page.click("#f-ok");
+    await expect(page.locator("#m-fornecedor option:checked")).toHaveText("Ferragens Sul");
+  });
+
+  test("recusa custo negativo", async ({ page }) => {
+    await menu(page, "movimentacoes");
+    await page.selectOption("#m-produto", "EX-CHA-01");
+    await page.fill("#m-lote", "L-2026A");
+    await page.fill("#m-custo", "-1");
+    await page.fill("#m-qtd", "1");
+    await page.click("#form-mov-page button[type=submit]");
+    await expect(page.locator("#m-erro")).toContainText("custo unitário");
+  });
+
+  test("cadastro de produto registra fornecedor e custo do primeiro lote", async ({ page }) => {
+    await menu(page, "produtos");
+    await page.click("#btn-novo");
+    await page.fill("#p-codigo", "Q-01");
+    await page.fill("#p-descricao", "Solvente");
+    await page.fill("#p-minimo", "2");
+    await page.fill("#p-lote", "S-1");
+    await page.fill("#p-validade", "2027-09-09");
+    await page.fill("#p-quantidade", "10");
+    await page.selectOption("#p-fornecedor", { label: "Química Central S.A." });
+    await page.fill("#p-custo", "12.5");
+    await page.click("#p-ok");
+    await menu(page, "fornecedores");
+    await expect(linhaForn(page, "Química Central").locator("td").nth(4)).toHaveText(/R\$\s?125,00/);
+  });
+});

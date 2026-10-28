@@ -104,6 +104,7 @@ label { display: grid; gap: 5px; font-weight: 500; font-size: .9rem }
 .toolbar select { flex: 0 1 200px; width: auto }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px }
 .grid.three { grid-template-columns: 2fr 1fr 1fr }
+.grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)) }
 .grid .full { grid-column: 1 / -1 }
 .form-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; align-items: center }
 .modo { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 14px; margin: 0; min-width: 0; display: grid; gap: 12px }
@@ -134,6 +135,18 @@ input:disabled { background: var(--line-soft); color: var(--muted); cursor: not-
 .lote-linha.proximo { color: var(--amber-fg); font-weight: 600 }
 .lotes-info { background: var(--line-soft); border-radius: 8px; padding: 10px 12px; font-size: .9rem }
 .lotes-info p { margin: 0 0 4px; color: var(--muted) }
+.campo-forn { display: flex; gap: 6px; align-items: end }
+.campo-forn label { flex: 1; min-width: 0 }
+.link-btn { all: unset; cursor: pointer; color: var(--blue); font-weight: 600; font-size: .85rem }
+.link-btn:hover { text-decoration: underline }
+.link-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px }
+dialog.wide { width: min(900px, calc(100vw - 32px)) }
+.mini-kpis { display: flex; gap: 10px 28px; flex-wrap: wrap; margin-bottom: 14px }
+.mini-kpis div span { display: block; color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .06em }
+.mini-kpis div strong { font-size: 1.25rem; font-variant-numeric: tabular-nums }
+.contato { display: grid; gap: 2px; font-size: .88rem }
+#fbody td:first-child { min-width: 220px }
+.nw, td.num { white-space: nowrap }
 .err { color: var(--red-fg); background: var(--red-bg); border-radius: 8px; padding: 8px 12px; font-size: .9rem; margin: 14px 0 0; font-weight: 500 }
 .info { color: var(--muted); font-size: .9rem; margin: 14px 0 0 }
 
@@ -165,7 +178,7 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
   .side-note { display: none }
   .main { padding-block: 24px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) }
-  .grid, .grid.three { grid-template-columns: 1fr }
+  .grid, .grid.three, .grid.four { grid-template-columns: 1fr }
   .bar-row { grid-template-columns: 110px minmax(0, 1fr) 44px }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important } }
@@ -181,6 +194,7 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
       <button data-view="dashboard" aria-current="page">Dashboard</button>
       <button data-view="produtos">Produtos</button>
       <button data-view="movimentacoes">Movimentações</button>
+      <button data-view="fornecedores">Fornecedores</button>
       <button data-view="alertas">Alertas<span class="badge" id="nav-badge" hidden></span></button>
       <button data-view="relatorios">Relatórios</button>
       <button data-view="configuracoes">Configurações</button>
@@ -263,9 +277,11 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
             <label>Tipo<select id="m-tipo"><option value="entrada">Entrada</option><option value="saida">Saída</option><option value="descarte">Descarte de lote vencido</option></select></label>
             <label>Quantidade<input id="m-qtd" type="number" min="0" step="any" inputmode="decimal"></label>
           </div>
-          <div class="grid three campos-lote" id="m-campos-entrada">
-            <label>Lote do fabricante <span class="hint">Lote já existente: a quantidade é somada a ele</span><input id="m-lote" list="m-lotes-lista" autocomplete="off"></label>
+          <div class="grid four campos-lote" id="m-campos-entrada">
+            <label>Lote do fabricante <span class="hint">Lote existente: soma a ele</span><input id="m-lote" list="m-lotes-lista" autocomplete="off"></label>
             <label>Data de validade<input id="m-validade" type="date"></label>
+            <label>Fornecedor <button type="button" class="link-btn" id="m-novo-forn">+ Novo fornecedor</button><select id="m-fornecedor"></select></label>
+            <label>Custo unitário (R$)<input id="m-custo" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></label>
           </div>
           <datalist id="m-lotes-lista"></datalist>
           <div class="grid three campos-lote" id="m-campos-saida" hidden>
@@ -280,8 +296,25 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
         <p class="sub">Rastreabilidade de todas as entradas e saídas (RF11 / RN-10).</p>
         <div class="table-box" style="margin-top:12px">
           <table>
-            <thead><tr><th>Data / hora</th><th>Tipo</th><th class="num">Qtd</th><th>Código</th><th>Descrição</th><th>Lote</th><th>Validade</th></tr></thead>
+            <thead><tr><th>Data / hora</th><th>Tipo</th><th class="num">Qtd</th><th>Código</th><th>Descrição</th><th>Lote</th><th>Validade</th><th>Fornecedor</th><th class="num">Custo unit.</th></tr></thead>
             <tbody id="hbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- FORNECEDORES -->
+    <section id="view-fornecedores" hidden>
+      <div class="card" style="margin-top:0">
+        <div class="card-head">
+          <div><h2>Fornecedores cadastrados</h2><p class="sub">Dados de contato e histórico de entregas de cada fornecedor.</p></div>
+          <button class="btn primary" id="btn-novo-forn">+ Novo fornecedor</button>
+        </div>
+        <div class="toolbar"><input id="busca-forn" type="search" placeholder="Pesquisar por nome ou CNPJ" aria-label="Pesquisar fornecedores"></div>
+        <div class="table-box" style="margin-top:12px">
+          <table>
+            <thead><tr><th>Fornecedor</th><th>CNPJ</th><th>Contato</th><th class="num">Entregas</th><th class="num">Valor total</th><th class="num">Ações</th></tr></thead>
+            <tbody id="fbody"></tbody>
           </table>
         </div>
       </div>
@@ -365,12 +398,47 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
           <p class="calc" id="p-calc" hidden></p>
         </fieldset>
         <label class="so-novo">Quantidade total<input id="p-quantidade" type="number" min="0" step="any" inputmode="decimal"></label>
+        <span class="so-novo"></span>
+        <label class="so-novo">Fornecedor<select id="p-fornecedor"></select></label>
+        <label class="so-novo">Custo unitário (R$)<input id="p-custo" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></label>
         <div class="full so-edicao" id="p-lotes-info"></div>
       </div>
       <p class="err" id="p-erro" hidden></p>
       <div class="form-actions"><button class="btn primary" type="submit" id="p-ok">Cadastrar</button><button class="btn" type="button" data-close>Cancelar</button></div>
     </div>
   </form>
+</dialog>
+
+<!-- Diálogo: novo / editar fornecedor -->
+<dialog id="dlg-forn">
+  <form id="form-forn" novalidate>
+    <div class="dlg-head"><h2 id="f-titulo">Novo fornecedor</h2><button class="x" type="button" data-close aria-label="Fechar">×</button></div>
+    <div class="dlg-body">
+      <div class="grid">
+        <label class="full">Nome / razão social<input id="f-nome" autocomplete="off"></label>
+        <label>CNPJ<input id="f-cnpj" inputmode="numeric" placeholder="00.000.000/0000-00" autocomplete="off"></label>
+        <label>Telefone<input id="f-telefone" type="tel" placeholder="(00) 00000-0000" autocomplete="off"></label>
+        <label class="full">E-mail<input id="f-email" type="email" autocomplete="off"></label>
+        <label class="full">Endereço<input id="f-endereco" autocomplete="off"></label>
+      </div>
+      <p class="err" id="f-erro" hidden></p>
+      <div class="form-actions"><button class="btn primary" type="submit" id="f-ok">Cadastrar</button><button class="btn" type="button" data-close>Cancelar</button></div>
+    </div>
+  </form>
+</dialog>
+
+<!-- Diálogo: histórico de fornecimento -->
+<dialog id="dlg-forn-hist" class="wide">
+  <div class="dlg-head"><h2 id="fh-titulo">Histórico de fornecimento</h2><button class="x" type="button" data-close aria-label="Fechar">×</button></div>
+  <div class="dlg-body">
+    <div class="mini-kpis" id="fh-kpis"></div>
+    <div class="table-box">
+      <table>
+        <thead><tr><th>Data</th><th>Código</th><th>Produto</th><th>Lote</th><th>Validade</th><th class="num">Qtd</th><th class="num">Custo unit.</th><th class="num">Total</th></tr></thead>
+        <tbody id="fh-body"></tbody>
+      </table>
+    </div>
+  </div>
 </dialog>
 
 <div class="toast" id="toast" role="status" hidden></div>
@@ -389,13 +457,17 @@ const EXEMPLO = {
     { lote: "L-99B", validade: "2026-10-15", quantidade: 4 },
     { lote: "L-120C", validade: "2027-03-01", quantidade: 8 }] }
 };
+const FORN_EXEMPLO = {
+  "F-EX1": { nome: "Aços Paulista Ltda.", cnpj: "11.222.333/0001-81", telefone: "(11) 4002-8922", email: "vendas@acospaulista.com.br", endereco: "Av. Industrial, 1500 – São Bernardo do Campo/SP", exemplo: true },
+  "F-EX2": { nome: "Química Central S.A.", cnpj: "45.723.174/0001-10", telefone: "(19) 3232-4545", email: "comercial@quimicacentral.com.br", endereco: "Rod. Anhanguera, km 98 – Campinas/SP", exemplo: true }
+};
 const KEY = "estoque-senai-v3", KEY_ANTIGA = "estoque-senai-v2";
-let estoque, historico, diasAviso;
+let estoque, historico, diasAviso, fornecedores;
 
 function carregar() {
   try {
     const s = JSON.parse(localStorage.getItem(KEY));
-    if (s && s.estoque) { estoque = s.estoque; historico = s.historico || []; diasAviso = s.diasAviso || 30; return; }
+    if (s && s.estoque) { estoque = s.estoque; historico = s.historico || []; diasAviso = s.diasAviso || 30; fornecedores = s.fornecedores || {}; return; }
     // Converte os dados da versão anterior (um lote por produto)
     const v2 = JSON.parse(localStorage.getItem(KEY_ANTIGA));
     if (v2 && v2.estoque) {
@@ -404,13 +476,13 @@ function carregar() {
         const { lote, validade, quantidade, ...resto } = p;
         estoque[cod] = { ...resto, lotes: quantidade > 0 ? [{ lote: lote || "SEM-LOTE", validade, quantidade }] : [] };
       }
-      historico = v2.historico || []; diasAviso = v2.diasAviso || 30;
+      historico = v2.historico || []; diasAviso = v2.diasAviso || 30; fornecedores = {};
       salvar(); return;
     }
   } catch (e) {}
-  estoque = structuredClone(EXEMPLO); historico = []; diasAviso = 30;
+  estoque = structuredClone(EXEMPLO); historico = []; diasAviso = 30; fornecedores = structuredClone(FORN_EXEMPLO);
 }
-function salvar() { try { localStorage.setItem(KEY, JSON.stringify({ estoque, historico, diasAviso })); } catch (e) {} }
+function salvar() { try { localStorage.setItem(KEY, JSON.stringify({ estoque, historico, diasAviso, fornecedores })); } catch (e) {} }
 
 // ---------- Regras ----------
 function hojeISO() { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
@@ -438,6 +510,9 @@ const PILL = {
 
 const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
 const fmt = n => nf.format(n);
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const dinheiro = n => n == null ? "—" : brl.format(n);
+const nomeForn = id => (fornecedores[id] && fornecedores[id].nome) || "—";
 function br(iso) { if (!iso) return "—"; const [a, m, d] = iso.split("-"); return `${d}/${m}/${a}`; }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function numero(v) { if (v === "" || v == null) return null; const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) ? n : NaN; }
@@ -446,13 +521,23 @@ function agora() {
   const d = new Date(), z = n => String(n).padStart(2, "0");
   return { data: `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`, quando: d.toISOString() };
 }
-function registrar(cod, p, tipo, l, q) {
-  historico.push({ ...agora(), codigo: cod, descricao: p.descricao, tipo, quantidade: r3(q), lote: l.lote, validade: l.validade });
+function registrar(cod, p, tipo, l, q, extra = {}) {
+  const h = { ...agora(), codigo: cod, descricao: p.descricao, tipo, quantidade: r3(q), lote: l.lote, validade: l.validade };
+  if (extra.fornecedor) h.fornecedor = extra.fornecedor;
+  if (extra.custo != null) h.custo = extra.custo;
+  historico.push(h);
+}
+// Custo unitário opcional: vazio = não informado; precisa ser número >= 0
+function lerCusto(v) {
+  const c = numero(v);
+  if (c === null) return { custo: null };
+  if (Number.isNaN(c) || c < 0) return { erro: "O custo unitário deve ser um valor em reais, igual ou maior que zero." };
+  return { custo: Math.round(c * 100) / 100 };
 }
 
 // Movimentação central (RF06, RF07, RN-01, RN-04, RF11) — devolve mensagem de erro ou null.
 // tipo: "entrada" | "saida" | "descarte"; lote: código do lote ("" na saída = automático, vence primeiro sai primeiro)
-function movimentar(cod, tipo, q, lote = "", validade = "") {
+function movimentar(cod, tipo, q, lote = "", validade = "", extra = {}) {
   const p = estoque[cod];
   if (!p) return "Produto não localizado no sistema.";
   if (q === null || Number.isNaN(q)) return "Digite uma quantidade válida.";
@@ -465,9 +550,10 @@ function movimentar(cod, tipo, q, lote = "", validade = "") {
     let l = p.lotes.find(x => x.lote === lote);
     if (l && l.validade !== validade)
       return `O lote ${lote} já está cadastrado com validade ${br(l.validade)}. Um lote tem uma única validade: confira o código do lote ou a data.`;
+    if (extra.fornecedor && !fornecedores[extra.fornecedor]) return "Fornecedor não encontrado. Escolha outro na lista.";
     if (l) l.quantidade = r3(l.quantidade + q);
     else p.lotes.push(l = { lote, validade, quantidade: r3(q) });
-    registrar(cod, p, "ENTRADA", l, q);
+    registrar(cod, p, "ENTRADA", l, q, extra);
     salvar(); renderTudo();
     toast(`Entrada registrada no lote ${lote}. Disponível de ${cod}: ${fmt(disponivel(p))}.`);
     return null;
@@ -578,8 +664,9 @@ function renderMov() {
   $("hbody").innerHTML = historico.length ? historico.slice().reverse().map(h => `<tr>
     <td>${esc(h.data)}</td><td>${TIPO_PILL[h.tipo] || esc(h.tipo)}</td>
     <td class="num">${fmt(h.quantidade)}</td><td class="code">${esc(h.codigo)}</td><td>${esc(h.descricao)}</td>
-    <td>${h.lote ? esc(h.lote) : "—"}</td><td>${br(h.validade)}</td></tr>`).join("")
-    : `<tr><td colspan="7" class="empty">Nenhuma movimentação registrada ainda.</td></tr>`;
+    <td>${h.lote ? esc(h.lote) : "—"}</td><td>${br(h.validade)}</td>
+    <td>${h.fornecedor ? esc(nomeForn(h.fornecedor)) : "—"}</td><td class="num">${dinheiro(h.custo)}</td></tr>`).join("")
+    : `<tr><td colspan="9" class="empty">Nenhuma movimentação registrada ainda.</td></tr>`;
 }
 // Mostra os campos certos para cada tipo: entrada pede lote e validade; saída e descarte escolhem um lote existente
 const codMov = () => modoCamera() ? scanCod : $("m-produto").value;
@@ -622,14 +709,14 @@ function renderRelatorios() {
      <span class="pill amber">Repor ao menos ${fmt(r3(p.estoque_minimo - disponivel(p) + 1))}</span></li>`).join("")}</ul>`
     : `<p class="ok-line">Todos os itens estão acima do estoque mínimo.</p>`;
 }
-function renderTudo() { renderDashboard(); renderAlertas(); renderProdutos(); renderMov(); renderRelatorios(); $("cfg-dias").value = diasAviso; }
+function renderTudo() { preencherSelectsForn(); renderDashboard(); renderAlertas(); renderProdutos(); renderMov(); renderFornecedores(); renderRelatorios(); $("cfg-dias").value = diasAviso; }
 
 let tt;
 function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => t.hidden = true, 3600); }
 function erro(el, m) { el.textContent = m || ""; el.hidden = !m; return false; }
 
 // ---------- Navegação ----------
-const TITULOS = { dashboard: "Visão geral do estoque", produtos: "Cadastro de produtos", movimentacoes: "Entradas, saídas e histórico",
+const TITULOS = { dashboard: "Visão geral do estoque", produtos: "Cadastro de produtos", movimentacoes: "Entradas, saídas e histórico", fornecedores: "Fornecedores e histórico de fornecimento",
   alertas: "Alertas de segurança e validade", relatorios: "Relatórios do estoque", configuracoes: "Configurações do sistema" };
 function abrir(view) {
   if (!TITULOS[view]) view = "dashboard";
@@ -651,7 +738,7 @@ function abrirProduto(cod) {
   $("p-ok").textContent = cod ? "Salvar alterações" : "Cadastrar";
   $("p-codigo").value = cod || ""; $("p-codigo").disabled = !!cod;
   $("p-descricao").value = p.descricao; $("p-minimo").value = p.estoque_minimo;
-  $("p-lote").value = ""; $("p-validade").value = ""; $("p-quantidade").value = "";
+  $("p-lote").value = ""; $("p-validade").value = ""; $("p-quantidade").value = ""; $("p-fornecedor").value = ""; $("p-custo").value = "";
   $("p-modo-avulso").checked = true; $("p-caixas").value = ""; $("p-por-caixa").value = p.unidades_por_caixa || "";
   atualizaModo();
   document.querySelectorAll("#form-prod .so-novo").forEach(el => el.hidden = !!cod);
@@ -716,10 +803,15 @@ $("form-prod").addEventListener("submit", e => {
   }
   if (qtd === null || Number.isNaN(qtd)) return erro(el, "Informe a quantidade do primeiro lote.");
   if (qtd < 0) return erro(el, "Quantidades não podem ser negativas (RN-07/RNF10).");
+  const c = lerCusto($("p-custo").value);
+  if (c.erro) return erro(el, c.erro);
 
   const p = estoque[codigo] = { descricao, estoque_minimo: min, lotes: [] };
   if (porCaixa) p.unidades_por_caixa = porCaixa;
-  if (qtd > 0) { const l = { lote, validade, quantidade: r3(qtd) }; p.lotes.push(l); registrar(codigo, p, "ENTRADA", l, qtd); }
+  if (qtd > 0) {
+    const l = { lote, validade, quantidade: r3(qtd) }; p.lotes.push(l);
+    registrar(codigo, p, "ENTRADA", l, qtd, { fornecedor: $("p-fornecedor").value, custo: c.custo });
+  }
   salvar(); renderTudo(); $("dlg-prod").close();
   toast(`Produto “${descricao}” cadastrado com o lote ${lote}.`);
 });
@@ -750,9 +842,15 @@ $("form-mov-page").addEventListener("submit", e => {
   if (cam && !scanCod) return erro($("m-erro"), "Leia o código do produto com a câmera ou digite o código antes de registrar.");
   const tipo = $("m-tipo").value;
   const lote = tipo === "entrada" ? $("m-lote").value : $("m-lote-saida").value;
-  const r = movimentar(codMov(), tipo, numero($("m-qtd").value), lote, $("m-validade").value);
+  let extra = {};
+  if (tipo === "entrada") {
+    const c = lerCusto($("m-custo").value);
+    if (c.erro) return erro($("m-erro"), c.erro);
+    extra = { fornecedor: $("m-fornecedor").value, custo: c.custo };
+  }
+  const r = movimentar(codMov(), tipo, numero($("m-qtd").value), lote, $("m-validade").value, extra);
   if (r) return erro($("m-erro"), r);
-  erro($("m-erro")); $("m-qtd").value = ""; $("m-lote").value = ""; $("m-validade").value = "";
+  erro($("m-erro")); $("m-qtd").value = ""; $("m-lote").value = ""; $("m-validade").value = ""; $("m-custo").value = "";
   if (cam) { scanCod = null; atualizaCamposMov(); status("info", "Movimentação registrada. Leia o próximo código."); }
 });
 
@@ -880,6 +978,94 @@ $("p-foto").addEventListener("change", async e => {
 $("dlg-prod").addEventListener("close", pararCameraProd);
 $("btn-novo-scan").addEventListener("click", () => { abrirProduto(); abrirCameraProd(); });
 
+// ---------- Fornecedores ----------
+// CNPJ: 14 dígitos com os dois dígitos verificadores corretos
+const soDigitos = v => String(v || "").replace(/\D/g, "");
+function cnpjValido(v) {
+  const d = soDigitos(v);
+  if (d.length !== 14 || /^(\d)\1+$/.test(d)) return false;
+  const dv = n => { let s = 0, pos = n - 7; for (let i = 0; i < n; i++) { s += +d[i] * pos--; if (pos < 2) pos = 9; } const r = s % 11; return r < 2 ? 0 : 11 - r; };
+  return dv(12) === +d[12] && dv(13) === +d[13];
+}
+const formatarCnpj = v => soDigitos(v).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+const emailValido = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+const entregasDe = id => historico.filter(h => h.tipo === "ENTRADA" && h.fornecedor === id);
+const valorEntrega = h => h.custo == null ? 0 : h.custo * h.quantidade;
+
+function preencherSelectsForn() {
+  const lista = Object.entries(fornecedores).sort(([, a], [, b]) => a.nome.localeCompare(b.nome, "pt-BR"));
+  const html = '<option value="">Sem fornecedor</option>' + lista.map(([id, f]) => `<option value="${esc(id)}">${esc(f.nome)}</option>`).join("");
+  for (const sel of [$("m-fornecedor"), $("p-fornecedor")]) { const antes = sel.value; sel.innerHTML = html; if (fornecedores[antes]) sel.value = antes; }
+}
+function renderFornecedores() {
+  const termo = $("busca-forn").value.trim().toLowerCase(), termoDig = soDigitos(termo);
+  const linhas = Object.entries(fornecedores)
+    .filter(([, f]) => !termo || f.nome.toLowerCase().includes(termo) || (termoDig && soDigitos(f.cnpj).includes(termoDig)))
+    .sort(([, a], [, b]) => a.nome.localeCompare(b.nome, "pt-BR"));
+  $("fbody").innerHTML = linhas.length ? linhas.map(([id, f]) => {
+    const ents = entregasDe(id);
+    return `<tr>
+      <td><b>${esc(f.nome)}</b>${f.exemplo ? ' <span class="tag-ex">· EXEMPLO</span>' : ""}${f.endereco ? `<span class="item-detail">${esc(f.endereco)}</span>` : ""}</td>
+      <td class="code">${esc(f.cnpj)}</td>
+      <td><span class="contato">${f.telefone ? `<span>${esc(f.telefone)}</span>` : ""}${f.email ? `<span>${esc(f.email)}</span>` : ""}${!f.telefone && !f.email ? "—" : ""}</span></td>
+      <td class="num">${ents.length}</td><td class="num">${dinheiro(ents.reduce((s, h) => s + valorEntrega(h), 0))}</td>
+      <td><div class="row-actions">
+        <button class="btn sm" data-forn-acao="historico" data-id="${esc(id)}">Histórico</button>
+        <button class="btn sm" data-forn-acao="editar" data-id="${esc(id)}">Editar</button>
+      </div></td></tr>`;
+  }).join("") : `<tr><td colspan="6" class="empty">${Object.keys(fornecedores).length ? "Nenhum fornecedor encontrado." : "Nenhum fornecedor cadastrado. Use “+ Novo fornecedor” para cadastrar o primeiro."}</td></tr>`;
+}
+$("busca-forn").addEventListener("input", renderFornecedores);
+
+let editandoForn = null, fornDestino = null;
+function abrirFornecedor(id, destino) {
+  editandoForn = id || null; fornDestino = destino || null;
+  const f = id ? fornecedores[id] : { nome: "", cnpj: "", telefone: "", email: "", endereco: "" };
+  $("f-titulo").textContent = id ? "Editar fornecedor" : "Novo fornecedor";
+  $("f-ok").textContent = id ? "Salvar alterações" : "Cadastrar";
+  for (const k of ["nome", "cnpj", "telefone", "email", "endereco"]) $("f-" + k).value = f[k] || "";
+  erro($("f-erro")); $("dlg-forn").showModal(); $("f-nome").focus();
+}
+$("f-cnpj").addEventListener("blur", e => { if (soDigitos(e.target.value).length === 14) e.target.value = formatarCnpj(e.target.value); });
+$("form-forn").addEventListener("submit", e => {
+  e.preventDefault();
+  const el = $("f-erro"), v = k => $("f-" + k).value.trim();
+  const nome = v("nome"), cnpj = v("cnpj"), telefone = v("telefone"), email = v("email"), endereco = v("endereco");
+  if (!nome) return erro(el, "Informe o nome ou a razão social do fornecedor.");
+  if (!cnpj) return erro(el, "Informe o CNPJ do fornecedor.");
+  if (!cnpjValido(cnpj)) return erro(el, "CNPJ inválido. Confira os 14 números; os dois últimos são dígitos verificadores.");
+  const dup = Object.entries(fornecedores).find(([id, f]) => id !== editandoForn && soDigitos(f.cnpj) === soDigitos(cnpj));
+  if (dup) return erro(el, `Este CNPJ já está cadastrado para ${dup[1].nome}.`);
+  if (email && !emailValido(email)) return erro(el, "E-mail inválido. Use o formato nome@empresa.com.br.");
+  const dados = { nome, cnpj: formatarCnpj(cnpj), telefone, email, endereco };
+  let id = editandoForn;
+  if (id) Object.assign(fornecedores[id], dados);
+  else { id = "F-" + Date.now().toString(36); fornecedores[id] = dados; }
+  salvar(); renderTudo(); $("dlg-forn").close();
+  if (fornDestino) { $(fornDestino).value = id; }
+  toast(editandoForn ? "Fornecedor atualizado." : `Fornecedor “${nome}” cadastrado.`);
+});
+$("btn-novo-forn").addEventListener("click", () => abrirFornecedor());
+$("m-novo-forn").addEventListener("click", () => abrirFornecedor(null, "m-fornecedor"));
+
+function abrirHistoricoForn(id) {
+  const f = fornecedores[id], ents = entregasDe(id).slice().reverse();
+  const total = ents.reduce((s, h) => s + valorEntrega(h), 0);
+  const produtos = new Set(ents.map(h => h.codigo)).size;
+  $("fh-titulo").textContent = `Histórico de fornecimento · ${f.nome}`;
+  $("fh-kpis").innerHTML = [["Entregas", ents.length], ["Produtos diferentes", produtos], ["Valor total", dinheiro(total)],
+    ["Última entrega", ents[0] ? esc(ents[0].data.slice(0, 10)) : "—"]].map(([l, v]) => `<div><span>${l}</span><strong>${v}</strong></div>`).join("");
+  $("fh-body").innerHTML = ents.length ? ents.map(h => `<tr>
+    <td>${esc(h.data)}</td><td class="code">${esc(h.codigo)}</td><td>${esc(h.descricao)}</td><td class="nw">${esc(h.lote || "—")}</td><td>${br(h.validade)}</td>
+    <td class="num">${fmt(h.quantidade)}</td><td class="num nw">${dinheiro(h.custo)}</td><td class="num">${h.custo == null ? "—" : dinheiro(valorEntrega(h))}</td></tr>`).join("")
+    : `<tr><td colspan="8" class="empty">Nenhuma entrega registrada. As entregas aparecem aqui quando uma entrada é feita com este fornecedor.</td></tr>`;
+  $("dlg-forn-hist").showModal();
+}
+$("fbody").addEventListener("click", e => {
+  const b = e.target.closest("button[data-forn-acao]"); if (!b) return;
+  b.dataset.fornAcao === "editar" ? abrirFornecedor(b.dataset.id) : abrirHistoricoForn(b.dataset.id);
+});
+
 // ---------- Configurações ----------
 $("form-cfg").addEventListener("submit", e => {
   e.preventDefault();
@@ -889,8 +1075,8 @@ $("form-cfg").addEventListener("submit", e => {
 });
 $("reset-area").addEventListener("click", e => {
   const a = $("reset-area"), padrao = `<button class="btn danger" type="button" id="btn-reset">Restaurar dados de exemplo</button>`;
-  if (e.target.id === "btn-reset") a.innerHTML = `<span>Apagar todos os produtos e o histórico?</span><button class="btn danger" type="button" id="reset-sim">Sim, restaurar</button><button class="btn" type="button" id="reset-nao">Cancelar</button>`;
-  else if (e.target.id === "reset-sim") { estoque = structuredClone(EXEMPLO); historico = []; diasAviso = 30; salvar(); renderTudo(); a.innerHTML = padrao; toast("Dados de exemplo restaurados."); }
+  if (e.target.id === "btn-reset") a.innerHTML = `<span>Apagar todos os produtos, fornecedores e o histórico?</span><button class="btn danger" type="button" id="reset-sim">Sim, restaurar</button><button class="btn" type="button" id="reset-nao">Cancelar</button>`;
+  else if (e.target.id === "reset-sim") { estoque = structuredClone(EXEMPLO); historico = []; diasAviso = 30; fornecedores = structuredClone(FORN_EXEMPLO); salvar(); renderTudo(); a.innerHTML = padrao; toast("Dados de exemplo restaurados."); }
   else if (e.target.id === "reset-nao") a.innerHTML = padrao;
 });
 
