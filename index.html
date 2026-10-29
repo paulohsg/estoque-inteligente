@@ -226,7 +226,7 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
     <nav class="nav" aria-label="Seções">
       <button data-view="dashboard" aria-current="page">Dashboard</button>
       <button data-view="consulta">Consulta</button>
-      <button data-view="cadastro">Cadastro</button>
+      <button data-view="cadastro">Produtos</button>
       <button data-view="movimentacoes">Movimentações</button>
       <button data-view="fornecedores">Fornecedores</button>
       <button data-view="alertas">Alertas<span class="badge" id="nav-badge" hidden></span></button>
@@ -365,8 +365,20 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
           <div class="grid three">
             <label id="lbl-m-produto">Produto<select id="m-produto"></select></label>
             <label>Tipo<select id="m-tipo"><option value="entrada">Entrada</option><option value="saida">Saída</option><option value="descarte">Descarte de lote vencido</option></select></label>
-            <label>Quantidade<input id="m-qtd" type="number" min="0" step="any" inputmode="decimal"></label>
+            <label>Quantidade total<input id="m-qtd" type="number" min="0" step="any" inputmode="decimal"></label>
           </div>
+          <fieldset class="modo campos-lote">
+            <legend>Forma da quantidade</legend>
+            <div class="radios">
+              <label class="radio"><input type="radio" name="m-qmodo" id="m-q-avulso" value="avulso" checked> Pequenas quantidades</label>
+              <label class="radio"><input type="radio" name="m-qmodo" id="m-q-caixas" value="caixas"> Caixas</label>
+            </div>
+            <div class="grid caixas-campos">
+              <label>Número de caixas<input id="m-caixas" type="number" min="1" step="1" inputmode="numeric" disabled></label>
+              <label>Unidades por caixa<input id="m-por-caixa" type="number" min="0" step="any" inputmode="decimal" disabled></label>
+            </div>
+            <p class="calc" id="m-calc" hidden></p>
+          </fieldset>
           <div class="grid four campos-lote" id="m-campos-entrada">
             <label>Lote do produto <span class="hint">Lote existente: soma a ele</span><input id="m-lote" list="m-lotes-lista" autocomplete="off"></label>
             <label>Data de validade<input id="m-validade" type="date"></label>
@@ -781,6 +793,8 @@ function atualizaCamposMov() {
   if ([...sel.options].some(o => o.value === antes)) sel.value = antes;
   $("m-lotes-lista").innerHTML = p.lotes.map(l => `<option value="${esc(l.lote)}">validade ${br(l.validade)}</option>`).join("");
   const venc = soma(lotesVencidos(p));
+  const pc = $("m-por-caixa");
+  if (!pc.value || pc.dataset.auto) { pc.value = p.unidades_por_caixa || ""; if (pc.value) pc.dataset.auto = "1"; else delete pc.dataset.auto; qtdMov.atualizar(); }
   $("m-saldo").textContent = `Disponível: ${fmt(disponivel(p))}` + (venc ? ` · ${fmt(venc)} em lotes vencidos (saída bloqueada)` : "");
 }
 function renderTudo() { preencherSelectsForn(); renderDashboard(); renderAlertas(); renderProdutos(); renderMov(); renderFornecedores(); renderRelatorios(); $("cfg-dias").value = diasAviso; }
@@ -793,7 +807,7 @@ function erro(el, m) { el.textContent = m || ""; el.hidden = !m; return false; }
 const TITULOS = { dashboard: "Visão geral do estoque", consulta: "Consulta de produtos", cadastro: "Cadastro de produtos", movimentacoes: "Entradas, saídas e histórico", fornecedores: "Fornecedores e histórico de fornecimento",
   alertas: "Alertas de segurança e validade", relatorios: "Relatórios do estoque", configuracoes: "Configurações do sistema" };
 function abrir(view) {
-  if (view === "produtos") view = "consulta";   // endereço antigo
+  if (view === "produtos") view = "cadastro";   // #produtos abre a aba Produtos
   if (!TITULOS[view]) view = "dashboard";
   if (view !== "cadastro") pararCameraProd();
   document.querySelectorAll(".nav button").forEach(b => b.dataset.view === view ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
@@ -807,7 +821,7 @@ document.querySelectorAll(".nav button").forEach(b => b.addEventListener("click"
 $("busca").addEventListener("input", renderProdutos);
 $("filtro").addEventListener("change", renderProdutos);
 let editando = null;
-// Prepara a aba Cadastro: produto novo (cod vazio) ou edição de um produto existente
+// Prepara a aba Produtos (cadastro): produto novo (cod vazio) ou edição de um produto existente
 function abrirProduto(cod, opcoes = {}) {
   editando = cod || null;
   const p = cod ? estoque[cod] : { descricao: "", estoque_minimo: "" };
@@ -855,31 +869,47 @@ document.querySelectorAll('input[name="cad-modo"]').forEach(r => r.addEventListe
 $("p-cancelar").addEventListener("click", () => editando ? abrir("consulta") : abrirProduto(null, { ficar: true }));
 // Ao abrir a aba pelo menu durante uma edição, volta para um cadastro novo
 document.querySelector('.nav button[data-view="cadastro"]').addEventListener("click", () => { if (editando) abrirProduto(null, { ficar: true }); });
-// Caixas: ativa os dois campos e calcula a quantidade total (caixas × unidades por caixa)
-const modoCaixas = () => $("p-modo-caixas").checked;
-function atualizaModo() {
-  const cx = modoCaixas();
-  $("p-caixas").disabled = $("p-por-caixa").disabled = !cx;
-  $("p-quantidade").disabled = cx;
-  $("p-calc").hidden = !cx;
-  if (cx) atualizaCalc();
+// Quantidade em pequenas quantidades ou em caixas (caixas × unidades por caixa).
+// O mesmo componente é usado no cadastro de produtos e nas movimentações.
+function criarQuantidade(ids) {
+  const el = k => $(ids[k]);
+  const q = {
+    modoCaixas: () => el("caixasRadio").checked,
+    atualizar() {
+      const cx = q.modoCaixas();
+      el("caixas").disabled = el("porCaixa").disabled = !cx;
+      el("total").disabled = cx;
+      el("calc").hidden = !cx;
+      if (cx) q.calcular();
+    },
+    calcular() {
+      const c = numero(el("caixas").value), u = numero(el("porCaixa").value);
+      if (c > 0 && u > 0) {
+        const t = r3(c * u);
+        el("total").value = t;
+        el("calc").innerHTML = `${fmt(c)} ${c === 1 ? "caixa" : "caixas"} × ${fmt(u)} un. = <b>${fmt(t)} unidades</b>`;
+      } else {
+        el("total").value = "";
+        el("calc").textContent = "Informe o número de caixas e as unidades por caixa para calcular o total.";
+      }
+    },
+    // Devolve { erro } ou { porCaixa } (porCaixa só no modo caixas)
+    validar() {
+      if (!q.modoCaixas()) return {};
+      const c = numero(el("caixas").value), u = numero(el("porCaixa").value);
+      if (c === null || Number.isNaN(c) || !Number.isInteger(c) || c < 1) return { erro: "Informe o número de caixas como um número inteiro a partir de 1." };
+      if (u === null || Number.isNaN(u) || u <= 0) return { erro: "Informe quantas unidades vêm em cada caixa (maior que zero)." };
+      return { porCaixa: u };
+    }
+  };
+  document.querySelectorAll(`input[name="${ids.nome}"]`).forEach(r => r.addEventListener("change", () => { q.atualizar(); if (q.modoCaixas()) el("caixas").focus(); }));
+  el("caixas").addEventListener("input", q.calcular);
+  el("porCaixa").addEventListener("input", () => { delete el("porCaixa").dataset.auto; q.calcular(); });
+  return q;
 }
-function atualizaCalc() {
-  const c = numero($("p-caixas").value), u = numero($("p-por-caixa").value);
-  if (c > 0 && u > 0) {
-    const t = r3(c * u);
-    $("p-quantidade").value = t;
-    $("p-calc").innerHTML = `${fmt(c)} ${c === 1 ? "caixa" : "caixas"} × ${fmt(u)} un. = <b>${fmt(t)} unidades</b>`;
-  } else {
-    $("p-quantidade").value = "";
-    $("p-calc").textContent = "Informe o número de caixas e as unidades por caixa para calcular o total.";
-  }
-}
-document.querySelectorAll('input[name="p-modo"]').forEach(r => r.addEventListener("change", () => {
-  atualizaModo(); if (modoCaixas()) $("p-caixas").focus();
-}));
-$("p-caixas").addEventListener("input", atualizaCalc);
-$("p-por-caixa").addEventListener("input", atualizaCalc);
+const qtdProd = criarQuantidade({ nome: "p-modo", caixasRadio: "p-modo-caixas", caixas: "p-caixas", porCaixa: "p-por-caixa", calc: "p-calc", total: "p-quantidade" });
+const qtdMov = criarQuantidade({ nome: "m-qmodo", caixasRadio: "m-q-caixas", caixas: "m-caixas", porCaixa: "m-por-caixa", calc: "m-calc", total: "m-qtd" });
+const modoCaixas = qtdProd.modoCaixas, atualizaModo = qtdProd.atualizar;
 $("form-prod").addEventListener("submit", e => {
   e.preventDefault();
   const el = $("p-erro"), codigo = $("p-codigo").value.trim(), descricao = $("p-descricao").value.trim();
@@ -913,13 +943,9 @@ $("form-prod").addEventListener("submit", e => {
   const lote = $("p-lote").value.trim(), validade = $("p-validade").value, qtd = numero($("p-quantidade").value);
   if (!lote || !validade) return erro(el, "Preencha o lote e a validade do primeiro lote (RN-05/RN-07).");
   if (validade < hojeISO()) return erro(el, `A validade informada (${br(validade)}) já passou. Não é possível cadastrar lote vencido.`);
-  let porCaixa;
-  if (modoCaixas()) {
-    const c = numero($("p-caixas").value), u = numero($("p-por-caixa").value);
-    if (c === null || Number.isNaN(c) || !Number.isInteger(c) || c < 1) return erro(el, "Informe o número de caixas como um número inteiro a partir de 1.");
-    if (u === null || Number.isNaN(u) || u <= 0) return erro(el, "Informe quantas unidades vêm em cada caixa (maior que zero).");
-    porCaixa = u;
-  }
+  const cx = qtdProd.validar();
+  if (cx.erro) return erro(el, cx.erro);
+  const porCaixa = cx.porCaixa;
   if (qtd === null || Number.isNaN(qtd)) return erro(el, "Informe a quantidade do primeiro lote.");
   if (qtd < 0) return erro(el, "Quantidades não podem ser negativas (RN-07/RNF10).");
   const c = lerCusto($("p-custo").value);
@@ -965,15 +991,21 @@ $("form-mov-page").addEventListener("submit", e => {
   if (cam && !scanCod) return erro($("m-erro"), "Leia o código do produto com a câmera ou digite o código antes de registrar.");
   const tipo = $("m-tipo").value;
   const lote = tipo === "entrada" ? $("m-lote").value : $("m-lote-saida").value;
+  const cx = qtdMov.validar();
+  if (cx.erro) return erro($("m-erro"), cx.erro);
+  const codAtual = codMov();
   let extra = {};
   if (tipo === "entrada") {
     const c = lerCusto($("m-custo").value);
     if (c.erro) return erro($("m-erro"), c.erro);
     extra = { fornecedor: $("m-fornecedor").value, custo: c.custo };
   }
-  const r = movimentar(codMov(), tipo, numero($("m-qtd").value), lote, $("m-validade").value, extra);
+  const r = movimentar(codAtual, tipo, numero($("m-qtd").value), lote, $("m-validade").value, extra);
   if (r) return erro($("m-erro"), r);
+  // Guarda as unidades por caixa usadas, para preencher sozinho da próxima vez
+  if (cx.porCaixa && estoque[codAtual] && estoque[codAtual].unidades_por_caixa !== cx.porCaixa) { estoque[codAtual].unidades_por_caixa = cx.porCaixa; salvar(); }
   erro($("m-erro")); $("m-qtd").value = ""; $("m-lote").value = ""; $("m-validade").value = ""; $("m-custo").value = "";
+  $("m-caixas").value = ""; qtdMov.atualizar();
   if (cam) { scanCod = null; atualizaCamposMov(); status("info", "Movimentação registrada. Leia o próximo código."); }
 });
 

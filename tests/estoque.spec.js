@@ -626,3 +626,64 @@ test.describe("Correções", () => {
     });
   }
 });
+
+test.describe("Quantidade em caixas nas movimentações", () => {
+  test("entrada em caixas: 3 caixas × 12 = 36 unidades no lote", async ({ page }) => {
+    await menu(page, "movimentacoes");
+    await page.selectOption("#m-produto", "EX-CHA-01");
+    await page.selectOption("#m-tipo", "entrada");
+    await page.fill("#m-lote", "L-CX1");
+    await page.fill("#m-validade", "2029-03-03");
+    await expect(page.locator("#m-caixas")).toBeDisabled();
+    await page.check("#m-q-caixas");
+    await expect(page.locator("#m-qtd")).toBeDisabled();
+    await page.fill("#m-caixas", "3");
+    await page.fill("#m-por-caixa", "12");
+    await expect(page.locator("#m-calc")).toContainText("36 unidades");
+    await page.click("#form-mov-page button[type=submit]");
+    await expect(page.locator("#m-erro")).toBeHidden();
+    await expect(page.locator("#hbody tr").first()).toContainText("L-CX1");
+    await expect(page.locator("#hbody tr").first().locator("td").nth(2)).toHaveText("36");
+  });
+
+  test("saída em caixas usa as unidades por caixa já conhecidas do produto", async ({ page }) => {
+    // Primeiro cadastro do produto em caixas guarda 12 unidades por caixa
+    await novoProduto(page, { codigo: "CX-02", descricao: "Luvas (caixa)", minimo: 1, lote: "G-1", validade: "2028-01-01", caixas: 5, porCaixa: 12 });
+    await menu(page, "movimentacoes");
+    await page.selectOption("#m-produto", "CX-02");
+    await page.selectOption("#m-tipo", "saida");
+    await page.check("#m-q-caixas");
+    await expect(page.locator("#m-por-caixa")).toHaveValue("12");
+    await page.fill("#m-caixas", "2");
+    await page.click("#form-mov-page button[type=submit]");
+    await expect(page.locator("#m-erro")).toBeHidden();
+    await expect(page.locator("#m-saldo")).toContainText("Disponível: 36");
+  });
+
+  test("recusa número de caixas inválido", async ({ page }) => {
+    await menu(page, "movimentacoes");
+    await page.selectOption("#m-produto", "EX-CHA-01");
+    await page.selectOption("#m-tipo", "saida");
+    await page.check("#m-q-caixas");
+    await page.fill("#m-caixas", "1.5");
+    await page.fill("#m-por-caixa", "10");
+    await page.click("#form-mov-page button[type=submit]");
+    await expect(page.locator("#m-erro")).toContainText("número de caixas");
+  });
+
+  test("saída em caixas respeita o saldo disponível (RN-04)", async ({ page }) => {
+    await menu(page, "movimentacoes");
+    await page.selectOption("#m-produto", "EX-LUB-02");
+    await page.selectOption("#m-tipo", "saida");
+    await page.check("#m-q-caixas");
+    await page.fill("#m-caixas", "2");
+    await page.fill("#m-por-caixa", "6");
+    await page.click("#form-mov-page button[type=submit]");
+    await expect(page.locator("#m-erro")).toContainText("Quantidade insuficiente");
+  });
+
+  test("o menu chama a aba de cadastro de “Produtos”", async ({ page }) => {
+    await expect(page.locator('.nav button[data-view="cadastro"]')).toHaveText("Produtos");
+    await expect(page.locator(".nav button", { hasText: /^Cadastro$/ })).toHaveCount(0);
+  });
+});
