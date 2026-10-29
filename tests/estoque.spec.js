@@ -577,3 +577,52 @@ test.describe("Abas Consulta e Cadastro separadas", () => {
     await expect(page.locator("#cad-opcoes")).toBeVisible();
   });
 });
+
+test.describe("Correções", () => {
+  test("editar produto permite corrigir o custo de uma entrada", async ({ page }) => {
+    await menu(page, "consulta");
+    await page.click('#tbody button[data-acao="editar"][data-cod="EX-LUB-02"]');
+    const custo = page.locator("#p-lotes-info .custo-edit");
+    await expect(custo).toHaveCount(1);                 // lubrificante tem 1 entrada no exemplo
+    await expect(custo).toHaveValue("32.9");
+    await custo.fill("29.9");
+    await page.click("#p-ok");
+    await expect(page.locator("#view-consulta")).toBeVisible();
+    // Histórico de movimentações mostra o novo custo marcado como corrigido
+    await menu(page, "movimentacoes");
+    const linhaEntrada = page.locator("#hbody tr", { hasText: "EX-LUB-02" }).filter({ hasText: "Entrada" });
+    await expect(linhaEntrada).toContainText(/R\$\s?29,90/);
+    await expect(linhaEntrada).toContainText("corrigido");
+    // Relatório usa o custo corrigido: 30 × R$ 29,90 = R$ 897,00
+    await menu(page, "relatorios");
+    await page.selectOption("#r-produto", "EX-LUB-02");
+    await expect(page.locator("#rep-kpis .kpi", { hasText: "Valor comprado" }).locator("strong")).toHaveText(/R\$\s?897,00/);
+  });
+
+  test("recusa custo corrigido negativo", async ({ page }) => {
+    await menu(page, "consulta");
+    await page.click('#tbody button[data-acao="editar"][data-cod="EX-LUB-02"]');
+    await page.locator("#p-lotes-info .custo-edit").fill("-5");
+    await page.click("#p-ok");
+    await expect(page.locator("#p-erro")).toContainText("custo unitário");
+    await expect(page.locator("#view-cadastro")).toBeVisible();
+  });
+
+  test("rótulo do lote na movimentação é “Lote do produto”", async ({ page }) => {
+    await menu(page, "movimentacoes");
+    await expect(page.locator("#m-campos-entrada")).toContainText("Lote do produto");
+    await expect(page.locator("#m-campos-entrada")).not.toContainText("fabricante");
+  });
+
+  for (const largura of [1280, 1100, 900, 390]) {
+    test(`valor comprado cabe no cartão (tela de ${largura}px)`, async ({ page }) => {
+      await page.setViewportSize({ width: largura, height: 900 });
+      await menu(page, "relatorios");
+      await page.selectOption("#r-periodo", "tudo");
+      for (const cartao of await page.locator("#rep-kpis .kpi").all()) {
+        const cabe = await cartao.evaluate(k => { const v = k.querySelector("strong"); return v.scrollWidth <= k.clientWidth - 16 && v.getBoundingClientRect().right <= k.getBoundingClientRect().right; });
+        expect(cabe).toBe(true);
+      }
+    });
+  }
+});
