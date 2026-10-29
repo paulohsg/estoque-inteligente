@@ -27,8 +27,7 @@ const linha = (page, cod) => page.locator("#tbody tr", { hasText: cod });
 const disponivelNaTabela = (page, cod) => linha(page, cod).locator("td").nth(2);
 
 async function novoProduto(page, dados) {
-  await menu(page, "produtos");
-  await page.click("#btn-novo");
+  await menu(page, "cadastro");
   if (dados.codigo !== undefined) await page.fill("#p-codigo", dados.codigo);
   if (dados.descricao !== undefined) await page.fill("#p-descricao", dados.descricao);
   if (dados.minimo !== undefined) await page.fill("#p-minimo", String(dados.minimo));
@@ -85,7 +84,7 @@ test.describe("Dashboard e alertas", () => {
 
 test.describe("Lotes por produto", () => {
   test("a tabela mostra cada lote com quantidade e validade", async ({ page }) => {
-    await menu(page, "produtos");
+    await menu(page, "consulta");
     await expect(linha(page, "EX-CHA-01").locator(".lote-linha")).toHaveText(["L-2026A · 25 · 30/12/2027", "L-2026B · 15 · 30/06/2028"]);
     // Disponível não conta o lote vencido
     await expect(disponivelNaTabela(page, "EX-RES-03")).toHaveText("8");
@@ -95,14 +94,14 @@ test.describe("Lotes por produto", () => {
   test("entrada com lote novo cria um lote separado (RN-05)", async ({ page }) => {
     await movimentar(page, { cod: "EX-LUB-02", tipo: "entrada", qtd: 20, lote: "L-LB90", validade: "2027-08-01" });
     await expect(page.locator("#m-erro")).toBeHidden();
-    await menu(page, "produtos");
+    await menu(page, "consulta");
     await expect(linha(page, "EX-LUB-02").locator(".lote-linha")).toHaveText(["L-LB77 · 8,5 · 10/11/2026", "L-LB90 · 20 · 01/08/2027"]);
     await expect(disponivelNaTabela(page, "EX-LUB-02")).toHaveText("28,5");
   });
 
   test("entrada em lote existente soma a quantidade", async ({ page }) => {
     await movimentar(page, { cod: "EX-CHA-01", tipo: "entrada", qtd: 5, lote: "L-2026A", validade: "2027-12-30" });
-    await menu(page, "produtos");
+    await menu(page, "consulta");
     await expect(linha(page, "EX-CHA-01").locator(".lote-linha").first()).toHaveText("L-2026A · 30 · 30/12/2027");
   });
 
@@ -138,14 +137,14 @@ test.describe("Saídas e descarte (RN-01, RN-04)", () => {
     await expect(page.locator("#hbody tr").nth(1)).toContainText("L-2026A");
     await expect(page.locator("#hbody tr").nth(1)).toContainText("25");
     await expect(page.locator("#hbody tr").nth(0)).toContainText("L-2026B");
-    await menu(page, "produtos");
+    await menu(page, "consulta");
     await expect(linha(page, "EX-CHA-01").locator(".lote-linha")).toHaveText(["L-2026B · 10 · 30/06/2028"]);
   });
 
   test("saída de um lote escolhido", async ({ page }) => {
     await movimentar(page, { cod: "EX-CHA-01", tipo: "saida", qtd: 3, lote: "L-2026B" });
     await expect(page.locator("#hbody tr").first()).toContainText("L-2026B");
-    await menu(page, "produtos");
+    await menu(page, "consulta");
     await expect(linha(page, "EX-CHA-01").locator(".lote-linha").nth(1)).toHaveText("L-2026B · 12 · 30/06/2028");
   });
 
@@ -181,12 +180,12 @@ test.describe("Saídas e descarte (RN-01, RN-04)", () => {
 
   test("botão de saída fica desativado sem lote dentro da validade", async ({ page }) => {
     await movimentar(page, { cod: "EX-LUB-02", tipo: "saida", qtd: 8.5 });
-    await menu(page, "produtos");
+    await menu(page, "consulta");
     await expect(page.locator('#tbody button[data-acao="saida"][data-cod="EX-LUB-02"]')).toBeDisabled();
   });
 
   test("botão “+ Entrada” da tabela abre Movimentações já preenchida", async ({ page }) => {
-    await menu(page, "produtos");
+    await menu(page, "consulta");
     await page.click('#tbody button[data-acao="entrada"][data-cod="EX-RES-03"]');
     await expect(page.locator("#view-movimentacoes")).toBeVisible();
     await expect(page.locator("#m-produto")).toHaveValue("EX-RES-03");
@@ -197,7 +196,10 @@ test.describe("Saídas e descarte (RN-01, RN-04)", () => {
 test.describe("Cadastro de produtos (RF01, RF02, RN-07)", () => {
   test("cadastra um produto com o primeiro lote", async ({ page }) => {
     await novoProduto(page, { codigo: "P-100", descricao: "Luva nitrílica", minimo: 2, lote: "L-7", validade: "2027-05-01", quantidade: 4.5 });
-    await expect(page.locator("#dlg-prod")).not.toBeVisible();
+    await expect(page.locator("#cad-sucesso")).toContainText("P-100 · Luva nitrílica");
+    await page.click("#cad-ver");
+    await expect(page.locator("#view-consulta")).toBeVisible();
+    await expect(page.locator("#tbody tr")).toHaveCount(1);
     await expect(linha(page, "P-100").locator(".lote-linha")).toHaveText("L-7 · 4,5 · 01/05/2027");
     await menu(page, "movimentacoes");
     await expect(page.locator("#hbody tr").first()).toContainText("P-100");
@@ -206,8 +208,7 @@ test.describe("Cadastro de produtos (RF01, RF02, RN-07)", () => {
   });
 
   test("cadastra por caixas: 10 caixas × 12 unidades = 120", async ({ page }) => {
-    await menu(page, "produtos");
-    await page.click("#btn-novo");
+    await menu(page, "cadastro");
     await expect(page.locator("#p-caixas")).toBeDisabled();
     await page.check("#p-modo-caixas");
     await expect(page.locator("#p-caixas")).toBeEnabled();
@@ -245,7 +246,7 @@ test.describe("Cadastro de produtos (RF01, RF02, RN-07)", () => {
   });
 
   test("editar altera descrição e mínimo e mostra os lotes", async ({ page }) => {
-    await menu(page, "produtos");
+    await menu(page, "consulta");
     await page.click('#tbody button[data-acao="editar"][data-cod="EX-CHA-01"]');
     await expect(page.locator("#p-lote")).toBeHidden();
     await expect(page.locator("#p-lotes-info")).toContainText("L-2026B");
@@ -272,7 +273,7 @@ test.describe("Dados salvos no navegador", () => {
       }));
     });
     await page.reload();
-    await menu(page, "produtos");
+    await menu(page, "consulta");
     await expect(linha(page, "OLD-1").locator(".lote-linha")).toHaveText("L-A · 7 · 02/02/2027");
   });
 });
@@ -300,19 +301,19 @@ test.describe("Leitura de código de barras e QR code", () => {
     await page.press("#scan-codigo", "Enter");
     await expect(page.locator("#scan-status")).toContainText("não está cadastrado");
     await page.click("#scan-cadastrar");
+    await expect(page.locator("#view-cadastro")).toBeVisible();
     await expect(page.locator("#p-codigo")).toHaveValue("XYZ-999");
   });
 
   test("cadastro: código de barras EAN-13 em foto preenche o código", async ({ page }) => {
-    await menu(page, "produtos");
-    await page.click("#btn-novo");
+    await menu(page, "cadastro");
     await page.setInputFiles("#p-foto", path.join(FIXTURES, "ean-7891000000014.png"));
     await expect(page.locator("#p-codigo")).toHaveValue("7891000000014", { timeout: 10_000 });
   });
 
   test("cadastro: câmera ao vivo (simulada) lê o código de barras", async ({ page }) => {
-    await menu(page, "produtos");
-    await page.click("#btn-novo-scan");
+    await menu(page, "cadastro");
+    await page.check("#cad-modo-ler");
     await expect(page.locator("#p-codigo")).toHaveValue("7891000000014", { timeout: 20_000 });
     await expect(page.locator("#p-scan-status")).toContainText("Código lido");
     await expect(page.locator("#leitor-prod")).toBeHidden(); // a câmera fecha sozinha após a leitura
@@ -429,8 +430,7 @@ test.describe("Fornecedores", () => {
   });
 
   test("cadastro de produto registra fornecedor e custo do primeiro lote", async ({ page }) => {
-    await menu(page, "produtos");
-    await page.click("#btn-novo");
+    await menu(page, "cadastro");
     await page.fill("#p-codigo", "Q-01");
     await page.fill("#p-descricao", "Solvente");
     await page.fill("#p-minimo", "2");
@@ -513,5 +513,67 @@ test.describe("Relatórios com filtros", () => {
     await menu(page, "relatorios");
     await page.selectOption("#r-produto", "EX-CHA-01");
     await expect(kpiRel(page, "Consumo no período")).toHaveText("40");
+  });
+});
+
+test.describe("Abas Consulta e Cadastro separadas", () => {
+  test("a Consulta só tem busca, sem botões de cadastro", async ({ page }) => {
+    await menu(page, "consulta");
+    await expect(page.locator("#view-consulta #form-prod")).toHaveCount(0);
+    await expect(page.locator("#consulta-contagem")).toHaveText("3 de 3 produtos");
+    await page.fill("#busca", "L-120C");          // busca também por lote
+    await expect(page.locator("#tbody tr")).toHaveCount(1);
+    await expect(page.locator("#consulta-contagem")).toHaveText("1 de 3 produtos");
+  });
+
+  test("o Cadastro oferece digitar ou ler o código", async ({ page }) => {
+    await menu(page, "cadastro");
+    await expect(page.locator("#cad-modo-digitar")).toBeChecked();
+    await expect(page.locator("#p-scan-btns")).toBeHidden();
+    await page.check("#cad-modo-ler");
+    await expect(page.locator("#p-scan-btns")).toBeVisible();
+    await page.check("#cad-modo-digitar");
+    await expect(page.locator("#p-scan-btns")).toBeHidden();
+    await expect(page.locator("#leitor-prod")).toBeHidden();
+  });
+
+  test("depois de cadastrar, o formulário fica limpo para o próximo", async ({ page }) => {
+    await novoProduto(page, { codigo: "P-200", descricao: "Fita isolante", minimo: 5, lote: "F-1", validade: "2028-02-02", quantidade: 30 });
+    await expect(page.locator("#view-cadastro")).toBeVisible();
+    await expect(page.locator("#cad-sucesso")).toBeVisible();
+    await expect(page.locator("#p-codigo")).toHaveValue("");
+    await expect(page.locator("#p-descricao")).toHaveValue("");
+  });
+
+  test("Editar na Consulta abre o Cadastro em modo edição e volta ao salvar", async ({ page }) => {
+    await menu(page, "consulta");
+    await page.click('#tbody button[data-acao="editar"][data-cod="EX-LUB-02"]');
+    await expect(page.locator("#view-cadastro")).toBeVisible();
+    await expect(page.locator("#p-titulo")).toHaveText("Editar produto EX-LUB-02");
+    await expect(page.locator("#cad-opcoes")).toBeHidden();
+    await expect(page.locator("#p-codigo")).toBeDisabled();
+    await page.fill("#p-descricao", "Lubrificante sintético");
+    await page.click("#p-ok");
+    await expect(page.locator("#view-consulta")).toBeVisible();
+    await expect(page.locator("#tbody tr", { hasText: "EX-LUB-02" })).toContainText("Lubrificante sintético");
+  });
+
+  test("Cancelar edição volta à Consulta sem alterar", async ({ page }) => {
+    await menu(page, "consulta");
+    await page.click('#tbody button[data-acao="editar"][data-cod="EX-LUB-02"]');
+    await page.fill("#p-descricao", "Não deve salvar");
+    await page.click("#p-cancelar");
+    await expect(page.locator("#view-consulta")).toBeVisible();
+    await expect(page.locator("#tbody tr", { hasText: "EX-LUB-02" })).toContainText("Lubrificante industrial");
+  });
+
+  test("abrir o Cadastro pelo menu depois de uma edição mostra um cadastro novo", async ({ page }) => {
+    await menu(page, "consulta");
+    await page.click('#tbody button[data-acao="editar"][data-cod="EX-LUB-02"]');
+    await menu(page, "dashboard");
+    await menu(page, "cadastro");
+    await expect(page.locator("#p-titulo")).toHaveText("Novo produto");
+    await expect(page.locator("#p-codigo")).toBeEnabled();
+    await expect(page.locator("#cad-opcoes")).toBeVisible();
   });
 });

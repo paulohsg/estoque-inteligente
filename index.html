@@ -147,6 +147,12 @@ dialog.wide { width: min(900px, calc(100vw - 32px)) }
 .contato { display: grid; gap: 2px; font-size: .88rem }
 #fbody td:first-child { min-width: 220px }
 .nw, td.num { white-space: nowrap }
+.opcoes-cadastro { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px }
+.opcao { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; cursor: pointer; font-weight: 400 }
+.opcao input { width: auto; margin: 3px 0 0; accent-color: var(--side-active) }
+.opcao > span { display: grid; gap: 3px }
+.opcao:has(input:checked) { border-color: var(--side-active); background: color-mix(in srgb, var(--side-active) 8%, transparent) }
+.opcao:has(input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 1px }
 .err { color: var(--red-fg); background: var(--red-bg); border-radius: 8px; padding: 8px 12px; font-size: .9rem; margin: 14px 0 0; font-weight: 500 }
 .info { color: var(--muted); font-size: .9rem; margin: 14px 0 0 }
 
@@ -196,6 +202,7 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .grid, .grid.three, .grid.four { grid-template-columns: 1fr }
   .filtros-linha { grid-template-columns: 1fr 1fr }
+  .opcoes-cadastro { grid-template-columns: 1fr }
   .filtros-linha .f-produto { grid-column: 1 / -1 }
   .bar-row { grid-template-columns: 110px minmax(0, 1fr) 44px }
 }
@@ -210,7 +217,8 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
     </div>
     <nav class="nav" aria-label="Seções">
       <button data-view="dashboard" aria-current="page">Dashboard</button>
-      <button data-view="produtos">Produtos</button>
+      <button data-view="consulta">Consulta</button>
+      <button data-view="cadastro">Cadastro</button>
       <button data-view="movimentacoes">Movimentações</button>
       <button data-view="fornecedores">Fornecedores</button>
       <button data-view="alertas">Alertas<span class="badge" id="nav-badge" hidden></span></button>
@@ -237,18 +245,15 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
       </div>
     </section>
 
-    <!-- PRODUTOS -->
-    <section id="view-produtos" hidden>
+    <!-- CONSULTA -->
+    <section id="view-consulta" hidden>
       <div class="card" style="margin-top:0">
         <div class="card-head">
           <div><h2>Produtos cadastrados</h2><p class="sub">Cada produto mostra seus lotes em estoque, com quantidade e validade.</p></div>
-          <div class="head-actions">
-            <button class="btn" id="btn-novo-scan">Cadastrar lendo código</button>
-            <button class="btn primary" id="btn-novo">+ Novo produto</button>
-          </div>
+          <span class="hint" id="consulta-contagem"></span>
         </div>
         <div class="toolbar">
-          <input id="busca" type="search" placeholder="Pesquisar por código ou descrição" aria-label="Pesquisar">
+          <input id="busca" type="search" placeholder="Pesquisar por código, descrição ou lote" aria-label="Pesquisar">
           <select id="filtro" aria-label="Filtrar por situação">
             <option value="">Todas as situações</option>
             <option value="regular">Regular</option>
@@ -263,6 +268,65 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
             <tbody id="tbody"></tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <!-- CADASTRO -->
+    <section id="view-cadastro" hidden>
+      <div class="card" style="margin-top:0" id="cad-opcoes">
+        <h2>Como cadastrar</h2>
+        <p class="sub">Escolha como informar o código do produto. Os demais dados são iguais nas duas formas.</p>
+        <div class="opcoes-cadastro" role="radiogroup" aria-label="Forma de cadastro">
+          <label class="opcao"><input type="radio" name="cad-modo" id="cad-modo-digitar" value="digitar" checked>
+            <span><b>Digitar os dados</b><span class="hint">Informe o código à mão ou com um leitor USB.</span></span></label>
+          <label class="opcao"><input type="radio" name="cad-modo" id="cad-modo-ler" value="ler">
+            <span><b>Ler código de barras ou QR code</b><span class="hint">Use a câmera ou uma foto da embalagem para preencher o código.</span></span></label>
+        </div>
+      </div>
+      <div class="card" id="cad-form-card">
+        <div class="card-head">
+          <div><h2 id="p-titulo">Novo produto</h2><p class="sub" id="p-sub">O produto entra no estoque com o primeiro lote.</p></div>
+        </div>
+        <div id="cad-sucesso" class="scan-status ok" hidden></div>
+        <form id="form-prod" novalidate style="margin-top:12px">
+      <div class="grid">
+        <div class="full scan-area">
+          <label>Código único <span class="hint">Obrigatório (RN-07). Digite ou leia o código de barras / QR code da embalagem.</span><input id="p-codigo" autocomplete="off"></label>
+          <div class="scan-actions" id="p-scan-btns" hidden>
+            <button type="button" class="btn sm" id="p-btn-cam">Ler com a câmera</button>
+            <label class="btn sm" for="p-foto">Ler de uma foto</label>
+            <input type="file" id="p-foto" accept="image/*" capture="environment" class="visually-hidden">
+          </div>
+          <div id="leitor-prod" class="leitor" hidden></div>
+          <div id="p-scan-status" class="scan-status" hidden></div>
+        </div>
+        <label class="full">Descrição / nome do material<input id="p-descricao" autocomplete="off"></label>
+        <label>Estoque mínimo <span class="hint">Alerta quando o disponível fica igual ou abaixo</span><input id="p-minimo" type="number" min="0" step="any" inputmode="decimal"></label>
+        <span></span>
+        <p class="full secao-lote so-novo">Primeiro lote (entrada inicial)</p>
+        <label class="so-novo">Lote do fabricante <span class="hint">RN-05</span><input id="p-lote" autocomplete="off"></label>
+        <label class="so-novo">Data de validade<input id="p-validade" type="date"></label>
+        <fieldset class="full modo so-novo">
+          <legend>Forma de entrada da quantidade</legend>
+          <div class="radios">
+            <label class="radio"><input type="radio" name="p-modo" id="p-modo-avulso" value="avulso" checked> Pequenas quantidades</label>
+            <label class="radio"><input type="radio" name="p-modo" id="p-modo-caixas" value="caixas"> Caixas</label>
+          </div>
+          <div class="grid caixas-campos">
+            <label id="lbl-caixas">Número de caixas<input id="p-caixas" type="number" min="1" step="1" inputmode="numeric" disabled></label>
+            <label id="lbl-por-caixa">Unidades por caixa<input id="p-por-caixa" type="number" min="0" step="any" inputmode="decimal" disabled></label>
+          </div>
+          <p class="calc" id="p-calc" hidden></p>
+        </fieldset>
+        <label class="so-novo">Quantidade total<input id="p-quantidade" type="number" min="0" step="any" inputmode="decimal"></label>
+        <span class="so-novo"></span>
+        <label class="so-novo">Fornecedor<select id="p-fornecedor"></select></label>
+        <label class="so-novo">Custo unitário (R$)<input id="p-custo" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></label>
+        <div class="full so-edicao" id="p-lotes-info"></div>
+      </div>
+            <p class="err" id="p-erro" hidden></p>
+          <div class="form-actions"><button class="btn primary" type="submit" id="p-ok">Cadastrar produto</button><button class="btn" type="button" id="p-cancelar">Limpar</button></div>
+        </form>
       </div>
     </section>
 
@@ -408,52 +472,6 @@ dialog::backdrop { background: rgb(5 8 12 / .55) }
     </section>
   </main>
 </div>
-
-<!-- Diálogo: novo / editar produto -->
-<dialog id="dlg-prod">
-  <form id="form-prod" novalidate>
-    <div class="dlg-head"><h2 id="p-titulo">Novo produto</h2><button class="x" type="button" data-close aria-label="Fechar">×</button></div>
-    <div class="dlg-body">
-      <div class="grid">
-        <div class="full scan-area">
-          <label>Código único <span class="hint">Obrigatório (RN-07). Digite ou leia o código de barras / QR code da embalagem.</span><input id="p-codigo" autocomplete="off"></label>
-          <div class="scan-actions" id="p-scan-btns">
-            <button type="button" class="btn sm" id="p-btn-cam">Ler com a câmera</button>
-            <label class="btn sm" for="p-foto">Ler de uma foto</label>
-            <input type="file" id="p-foto" accept="image/*" capture="environment" class="visually-hidden">
-          </div>
-          <div id="leitor-prod" class="leitor" hidden></div>
-          <div id="p-scan-status" class="scan-status" hidden></div>
-        </div>
-        <label class="full">Descrição / nome do material<input id="p-descricao" autocomplete="off"></label>
-        <label>Estoque mínimo <span class="hint">Alerta quando o disponível fica igual ou abaixo</span><input id="p-minimo" type="number" min="0" step="any" inputmode="decimal"></label>
-        <span></span>
-        <p class="full secao-lote so-novo">Primeiro lote (entrada inicial)</p>
-        <label class="so-novo">Lote do fabricante <span class="hint">RN-05</span><input id="p-lote" autocomplete="off"></label>
-        <label class="so-novo">Data de validade<input id="p-validade" type="date"></label>
-        <fieldset class="full modo so-novo">
-          <legend>Forma de entrada da quantidade</legend>
-          <div class="radios">
-            <label class="radio"><input type="radio" name="p-modo" id="p-modo-avulso" value="avulso" checked> Pequenas quantidades</label>
-            <label class="radio"><input type="radio" name="p-modo" id="p-modo-caixas" value="caixas"> Caixas</label>
-          </div>
-          <div class="grid caixas-campos">
-            <label id="lbl-caixas">Número de caixas<input id="p-caixas" type="number" min="1" step="1" inputmode="numeric" disabled></label>
-            <label id="lbl-por-caixa">Unidades por caixa<input id="p-por-caixa" type="number" min="0" step="any" inputmode="decimal" disabled></label>
-          </div>
-          <p class="calc" id="p-calc" hidden></p>
-        </fieldset>
-        <label class="so-novo">Quantidade total<input id="p-quantidade" type="number" min="0" step="any" inputmode="decimal"></label>
-        <span class="so-novo"></span>
-        <label class="so-novo">Fornecedor<select id="p-fornecedor"></select></label>
-        <label class="so-novo">Custo unitário (R$)<input id="p-custo" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00"></label>
-        <div class="full so-edicao" id="p-lotes-info"></div>
-      </div>
-      <p class="err" id="p-erro" hidden></p>
-      <div class="form-actions"><button class="btn primary" type="submit" id="p-ok">Cadastrar</button><button class="btn" type="button" data-close>Cancelar</button></div>
-    </div>
-  </form>
-</dialog>
 
 <!-- Diálogo: novo / editar fornecedor -->
 <dialog id="dlg-forn">
@@ -711,6 +729,7 @@ function renderProdutos() {
   const linhas = Object.entries(estoque).filter(([cod, p]) =>
     (!termo || cod.toLowerCase().includes(termo) || p.descricao.toLowerCase().includes(termo) || p.lotes.some(l => l.lote.toLowerCase().includes(termo)))
     && (!filtro || situacoes(p).includes(filtro)));
+  $("consulta-contagem").textContent = `${linhas.length} de ${Object.keys(estoque).length} produtos`;
   $("tbody").innerHTML = linhas.length ? linhas.map(([cod, p]) => `<tr>
     <td class="code">${esc(cod)}</td><td>${p.exemplo ? '<span class="tag-ex">EXEMPLO</span> · ' : ""}${esc(p.descricao)}</td>
     <td class="num">${fmt(disponivel(p))}</td><td class="num">${fmt(p.estoque_minimo)}</td>
@@ -763,10 +782,12 @@ function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; c
 function erro(el, m) { el.textContent = m || ""; el.hidden = !m; return false; }
 
 // ---------- Navegação ----------
-const TITULOS = { dashboard: "Visão geral do estoque", produtos: "Cadastro de produtos", movimentacoes: "Entradas, saídas e histórico", fornecedores: "Fornecedores e histórico de fornecimento",
+const TITULOS = { dashboard: "Visão geral do estoque", consulta: "Consulta de produtos", cadastro: "Cadastro de produtos", movimentacoes: "Entradas, saídas e histórico", fornecedores: "Fornecedores e histórico de fornecimento",
   alertas: "Alertas de segurança e validade", relatorios: "Relatórios do estoque", configuracoes: "Configurações do sistema" };
 function abrir(view) {
+  if (view === "produtos") view = "consulta";   // endereço antigo
   if (!TITULOS[view]) view = "dashboard";
+  if (view !== "cadastro") pararCameraProd();
   document.querySelectorAll(".nav button").forEach(b => b.dataset.view === view ? b.setAttribute("aria-current", "page") : b.removeAttribute("aria-current"));
   Object.keys(TITULOS).forEach(v => $("view-" + v).hidden = v !== view);
   $("page-title").textContent = TITULOS[view];
@@ -778,12 +799,16 @@ document.querySelectorAll(".nav button").forEach(b => b.addEventListener("click"
 $("busca").addEventListener("input", renderProdutos);
 $("filtro").addEventListener("change", renderProdutos);
 let editando = null;
-function abrirProduto(cod) {
+// Prepara a aba Cadastro: produto novo (cod vazio) ou edição de um produto existente
+function abrirProduto(cod, opcoes = {}) {
   editando = cod || null;
   const p = cod ? estoque[cod] : { descricao: "", estoque_minimo: "" };
   $("p-titulo").textContent = cod ? `Editar produto ${cod}` : "Novo produto";
-  $("p-ok").textContent = cod ? "Salvar alterações" : "Cadastrar";
-  $("p-codigo").value = cod || ""; $("p-codigo").disabled = !!cod;
+  $("p-sub").textContent = cod ? "Altere a descrição ou o estoque mínimo. Quantidades mudam só em Movimentações." : "O produto entra no estoque com o primeiro lote.";
+  $("p-ok").textContent = cod ? "Salvar alterações" : "Cadastrar produto";
+  $("p-cancelar").textContent = cod ? "Cancelar edição" : "Limpar";
+  $("cad-opcoes").hidden = !!cod;
+  $("p-codigo").value = opcoes.codigo || cod || ""; $("p-codigo").disabled = !!cod;
   $("p-descricao").value = p.descricao; $("p-minimo").value = p.estoque_minimo;
   $("p-lote").value = ""; $("p-validade").value = ""; $("p-quantidade").value = ""; $("p-fornecedor").value = ""; $("p-custo").value = "";
   $("p-modo-avulso").checked = true; $("p-caixas").value = ""; $("p-por-caixa").value = p.unidades_por_caixa || "";
@@ -791,9 +816,24 @@ function abrirProduto(cod) {
   document.querySelectorAll("#form-prod .so-novo").forEach(el => el.hidden = !!cod);
   document.querySelectorAll("#form-prod .so-edicao").forEach(el => el.hidden = !cod);
   if (cod) $("p-lotes-info").innerHTML = `<div class="lotes-info"><p>Lotes em estoque (para mudar quantidades, use Movimentações):</p>${lotesHTML(p)}</div>`;
-  $("p-scan-btns").hidden = !!cod; $("p-scan-status").hidden = true;
-  erro($("p-erro")); $("dlg-prod").showModal(); (cod ? $("p-descricao") : $("p-codigo")).focus();
+  $("p-scan-status").hidden = true; $("cad-sucesso").hidden = !!cod || !opcoes.manterSucesso;
+  erro($("p-erro"));
+  if (!opcoes.ficar) abrir("cadastro");
+  modoLeitura(!cod && $("cad-modo-ler").checked);
+  if (!opcoes.semFoco) (cod || opcoes.codigo ? $("p-descricao") : $("p-codigo")).focus();
 }
+// Forma de cadastro: ler o código mostra os botões de câmera e foto e já abre a câmera
+function modoLeitura(ler) {
+  $("p-scan-btns").hidden = !ler;
+  if (ler) { if (!$("p-codigo").value) abrirCameraProd(); }
+  else pararCameraProd();
+}
+document.querySelectorAll('input[name="cad-modo"]').forEach(r => r.addEventListener("change", () => {
+  $("p-scan-status").hidden = true; modoLeitura($("cad-modo-ler").checked);
+}));
+$("p-cancelar").addEventListener("click", () => editando ? abrir("consulta") : abrirProduto(null, { ficar: true }));
+// Ao abrir a aba pelo menu durante uma edição, volta para um cadastro novo
+document.querySelector('.nav button[data-view="cadastro"]').addEventListener("click", () => { if (editando) abrirProduto(null, { ficar: true }); });
 // Caixas: ativa os dois campos e calcula a quantidade total (caixas × unidades por caixa)
 const modoCaixas = () => $("p-modo-caixas").checked;
 function atualizaModo() {
@@ -819,7 +859,6 @@ document.querySelectorAll('input[name="p-modo"]').forEach(r => r.addEventListene
 }));
 $("p-caixas").addEventListener("input", atualizaCalc);
 $("p-por-caixa").addEventListener("input", atualizaCalc);
-$("btn-novo").addEventListener("click", () => abrirProduto());
 $("form-prod").addEventListener("submit", e => {
   e.preventDefault();
   const el = $("p-erro"), codigo = $("p-codigo").value.trim(), descricao = $("p-descricao").value.trim();
@@ -834,7 +873,7 @@ $("form-prod").addEventListener("submit", e => {
 
   if (editando) {
     Object.assign(estoque[editando], { descricao, estoque_minimo: min });
-    salvar(); renderTudo(); $("dlg-prod").close();
+    salvar(); renderTudo(); editando = null; abrir("consulta");
     return toast("Produto atualizado.");
   }
 
@@ -859,8 +898,12 @@ $("form-prod").addEventListener("submit", e => {
     const l = { lote, validade, quantidade: r3(qtd) }; p.lotes.push(l);
     registrar(codigo, p, "ENTRADA", l, qtd, { fornecedor: $("p-fornecedor").value, custo: c.custo });
   }
-  salvar(); renderTudo(); $("dlg-prod").close();
-  toast(`Produto “${descricao}” cadastrado com o lote ${lote}.`);
+  salvar(); renderTudo();
+  // Limpa o formulário para o próximo cadastro e mostra o resultado
+  abrirProduto(null, { ficar: true, manterSucesso: true });
+  $("cad-sucesso").innerHTML = `<span>Produto <b>${esc(codigo)} · ${esc(descricao)}</b> cadastrado com o lote ${esc(lote)}.</span><button type="button" class="btn sm" id="cad-ver">Ver na consulta</button>`;
+  $("cad-ver").addEventListener("click", () => { $("busca").value = codigo; renderProdutos(); abrir("consulta"); });
+  toast(`Produto “${descricao}” cadastrado.`);
 });
 // Botões da tabela: Entrada e Saída abrem a tela de Movimentações já preenchida
 $("tbody").addEventListener("click", e => {
@@ -924,7 +967,7 @@ function codigoLido(texto) {
   if (!p) {
     scanCod = null;
     status("bad", `<span>Código <b>${esc(cod)}</b> não está cadastrado.</span><button type="button" class="btn sm" id="scan-cadastrar">Cadastrar com este código</button>`);
-    $("scan-cadastrar").addEventListener("click", () => { abrirProduto(); $("p-codigo").value = cod; $("p-descricao").focus(); });
+    $("scan-cadastrar").addEventListener("click", () => { pararCamera(); abrirProduto(null, { codigo: cod }); });
     return;
   }
   scanCod = cod; $("m-produto").value = cod; atualizaCamposMov();
@@ -1022,8 +1065,6 @@ $("p-foto").addEventListener("change", async e => {
   try { codigoLidoProd(await s.scanFile(f, false)); }
   catch (err) { statusProd("bad", "Nenhum código encontrado na foto. Tente de novo com o código mais perto, centralizado e bem iluminado."); }
 });
-$("dlg-prod").addEventListener("close", pararCameraProd);
-$("btn-novo-scan").addEventListener("click", () => { abrirProduto(); abrirCameraProd(); });
 
 // ---------- Fornecedores ----------
 // CNPJ: 14 dígitos com os dois dígitos verificadores corretos
@@ -1291,5 +1332,5 @@ $("reset-area").addEventListener("click", e => {
 });
 
 $("date").textContent = new Date().toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
-carregar(); renderTudo(); abrir(location.hash.slice(1));
+carregar(); renderTudo(); abrirProduto(null, { ficar: true, semFoco: true }); abrir(location.hash.slice(1));
 </script>

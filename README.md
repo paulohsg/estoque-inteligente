@@ -7,8 +7,8 @@ Sistema web de controle de estoque industrial, criado a partir da versão em Pyt
 ## Funções
 
 - **Dashboard:** indicadores (produtos, quantidade total, estoque baixo, próximos do vencimento, vencidos) e lista de itens que precisam de atenção.
-- **Produtos:** cadastro, edição, busca e filtro. A quantidade pode ser informada em unidades ou em caixas (número de caixas × unidades por caixa).
-- **Cadastro por código:** o código do produto pode ser lido de um código de barras ou QR code, pela câmera ou por uma foto.
+- **Consulta:** área só de busca, com todos os produtos cadastrados, seus lotes e situação. Pesquisa por código, descrição ou lote e filtro por situação. Daqui saem os atalhos de entrada, saída e edição.
+- **Cadastro:** aba própria para cadastrar produtos, com duas formas: digitar os dados ou ler o código de barras / QR code (câmera ou foto). A quantidade inicial pode ser em unidades ou em caixas (número de caixas × unidades por caixa). A edição de um produto também acontece aqui.
 - **Lotes:** cada produto pode ter vários lotes, cada um com sua validade e quantidade. A entrada registra o lote; se o lote já existe, a quantidade é somada a ele.
 - **Movimentações:** entradas, saídas e descarte de lotes vencidos, escolhendo o produto na lista ou lendo o código com a câmera. A saída tira primeiro do lote que vence antes (PVPS) ou de um lote escolhido. Inclui o histórico completo, com o lote de cada movimentação.
 - **Fornecedores:** cadastro, consulta e edição (nome, CNPJ validado, telefone, e-mail e endereço). Cada entrada registra o fornecedor e o custo unitário, e cada fornecedor tem seu histórico de fornecimento (produtos, lotes, quantidades, valores e datas).
